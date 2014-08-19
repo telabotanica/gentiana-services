@@ -24,6 +24,9 @@ class ZonesGeo {
 	protected $navigation;
 	protected $table;
 	protected $nom;
+	protected $tri = "nom";
+	protected $tris_possibles = array('code_insee', 'nom', 'nom_sci', 'num_tax', 'num_nom', 'presence');
+	protected $tri_dir = "ASC";
 
 	public function __construct(Conteneur $conteneur = null) {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
@@ -35,6 +38,17 @@ class ZonesGeo {
 
 	public function consulter($ressources, $parametres) {
 		$this->masque = $this->navigation->getFiltre('masque.nom');
+		
+		// TODO: renvoyer une erreur si le tri ou la direction n'existent pas ?
+		// ou bien renvoyer le tri par défaut ?
+		if($this->navigation->getFiltre('retour.tri') != null && in_array($this->navigation->getFiltre('retour.tri'), $this->tris_possibles)) {
+			$this->tri = $this->navigation->getFiltre('retour.tri');
+		}
+		if($this->navigation->getFiltre('retour.ordre') != null) {
+			$dir = $this->navigation->getFiltre('retour.ordre');
+			$this->tri_dir = ($dir == "ASC" || $dir == "DESC") ? $dir : $this->tri_dir;
+		}
+		
 		$zones = $this->listeZonesGeo();
 		$total = count($zones);
 
@@ -51,7 +65,7 @@ class ZonesGeo {
 			$masqueP = $this->conteneur->getBdd()->proteger($this->masque);
 			$req .= " WHERE nom LIKE $masqueP";
 		}
-		$req .= " ORDER BY nom ASC";
+		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
