@@ -31,10 +31,16 @@ class Taxons {
 		$this->navigation = $conteneur->getNavigation();
 		$this->navigation->setActionNom($this->nom);
 		$this->table = $this->conteneur->getParametre('chorologie.table');
+		$this->masque = array();
 	}
 
 	public function consulter($ressources, $parametres) {
-		$this->masque = $this->navigation->getFiltre('masque.nom');
+		if($this->navigation->getFiltre('masque.nom') != null) {
+			$this->masque['nom'] = $this->navigation->getFiltre('masque.nom');
+		}
+		if($this->navigation->getFiltre('masque.zone-geo') != null) {
+			$this->masque['zone-geo'] = $this->navigation->getFiltre('masque.zone-geo');
+		}
 		$zones = $this->listeTaxons();
 		$total = count($zones);
 
@@ -47,10 +53,7 @@ class Taxons {
 
 	protected function listeTaxons() {
 		$req = "SELECT DISTINCT num_nom, num_tax, nom_sci FROM " . $this->table;
-		if ($this->masque != null) {
-			$masqueP = $this->conteneur->getBdd()->proteger($this->masque);
-			$req .= " WHERE nom_sci LIKE $masqueP";
-		}
+		$req .= $this->construireMasque();
 		$req .= " ORDER BY nom_sci ASC";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 
@@ -58,13 +61,28 @@ class Taxons {
 
 		return $resultat;
 	}
+	
+	private function construireMasque() {
+		$where = "";
+		$conditions = array();
+		if(!empty($this->masque)) {
+			if(isset($this->masque['nom'])) {
+				$masqueNom = $this->conteneur->getBdd()->proteger($this->masque['nom']);
+				$conditions[] = "nom_sci LIKE $masqueNom";
+			}
+			
+			if(isset($this->masque['zone-geo'])) {
+				$masqueZg = $this->conteneur->getBdd()->proteger($this->masque['zone-geo']);
+				$conditions[] = "code_insee = $masqueZg";
+			}
+			$where = " WHERE ".implode(' AND ', $conditions);
+		}
+		return $where;
+	}
 
 	protected function compterTaxons() {
 		$req = "SELECT count(DISTINCT num_nom, num_tax, nom_sci) AS compte FROM " . $this->table;
-		if ($this->masque != null) {
-			$masqueP = $this->conteneur->getBdd()->proteger($this->masque);
-			$req .= " WHERE nom_sci LIKE $masqueP";
-		}
+		$req .= $this->construireMasque();
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 
 		return $resultat['compte'];
