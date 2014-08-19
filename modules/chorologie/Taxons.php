@@ -4,7 +4,7 @@
  * Paramètres :
  * - navigation.depart : élément auquel commencer la page (liste) servie
  * - navigation.limite : taille de page
- * - masque : un LIKE sera effectué entre le nom sxientifique et ce masque
+ * - masque : un LIKE sera effectué entre le nom scientifique et ce masque
  *
  * @category   Gentiana
  * @package    Services
@@ -24,6 +24,9 @@ class Taxons {
 	protected $navigation;
 	protected $table;
 	protected $nom;
+	protected $tri = "nom_sci";
+	protected $tris_possibles = array('code_insee', 'nom', 'nom_sci', 'num_tax', 'num_nom', 'presence');
+	protected $tri_dir = "ASC";
 
 	public function __construct(Conteneur $conteneur = null) {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
@@ -41,6 +44,17 @@ class Taxons {
 		if($this->navigation->getFiltre('masque.zone-geo') != null) {
 			$this->masque['zone-geo'] = $this->navigation->getFiltre('masque.zone-geo');
 		}
+
+		// TODO: renvoyer une erreur si le tri ou la direction n'existent pas ?
+		// ou bien renvoyer le tri par défaut ?
+		if($this->navigation->getFiltre('retour.tri') != null && in_array($this->navigation->getFiltre('retour.tri'), $this->tris_possibles)) {
+			$this->tri = $this->navigation->getFiltre('retour.tri');
+		}
+
+		if($this->navigation->getFiltre('retour.ordre') != null) {
+			$dir = $this->navigation->getFiltre('retour.ordre');
+			$this->tri_dir = ($dir == "ASC" || $dir == "DESC") ? $dir : $this->tri_dir;
+		}
 		$zones = $this->listeTaxons();
 		$total = count($zones);
 
@@ -54,7 +68,7 @@ class Taxons {
 	protected function listeTaxons() {
 		$req = "SELECT DISTINCT num_nom, num_tax, nom_sci FROM " . $this->table;
 		$req .= $this->construireMasque();
-		$req .= " ORDER BY nom_sci ASC";
+		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
