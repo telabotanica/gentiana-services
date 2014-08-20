@@ -66,8 +66,8 @@ class Taxons {
 	}
 
 	protected function listeTaxons() {
-		$req = "SELECT DISTINCT num_nom, num_tax, nom_sci FROM " . $this->table;
-		$req .= $this->construireMasque();
+		$req = "SELECT DISTINCT num_nom, nom_sci FROM " . $this->table;
+		$req .= $this->construireWhere();
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 
@@ -75,8 +75,16 @@ class Taxons {
 
 		return $resultat;
 	}
-	
-	protected function construireMasque() {
+
+	protected function compterTaxons() {
+		$req = "SELECT count(DISTINCT num_nom, nom_sci) AS compte FROM " . $this->table;
+		$req .= $this->construireWhere();
+		$resultat = $this->conteneur->getBdd()->recuperer($req);
+
+		return $resultat['compte'];
+	}
+
+	protected function construireWhere() {
 		$where = "";
 		$conditions = array();
 		if(!empty($this->masque)) {
@@ -92,13 +100,5 @@ class Taxons {
 			$where = " WHERE ".implode(' AND ', $conditions);
 		}
 		return $where;
-	}
-
-	protected function compterTaxons() {
-		$req = "SELECT count(DISTINCT num_nom, nom_sci) AS compte FROM " . $this->table;
-		$req .= $this->construireMasque();
-		$resultat = $this->conteneur->getBdd()->recuperer($req);
-
-		return $resultat['compte'];
 	}
 }
