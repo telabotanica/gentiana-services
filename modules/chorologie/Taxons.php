@@ -76,7 +76,7 @@ class Taxons {
 		return $resultat;
 	}
 	
-	private function construireMasque() {
+	protected function construireMasque() {
 		$where = "";
 		$conditions = array();
 		if(!empty($this->masque)) {
@@ -95,7 +95,7 @@ class Taxons {
 	}
 
 	protected function compterTaxons() {
-		$req = "SELECT count(DISTINCT num_nom, num_tax, nom_sci) AS compte FROM " . $this->table;
+		$req = "SELECT count(DISTINCT num_nom, nom_sci) AS compte FROM " . $this->table;
 		$req .= $this->construireMasque();
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 
