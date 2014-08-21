@@ -35,9 +35,15 @@ class Navigation {
 
 		$contexte = $this->conteneur->getContexte();
 		$this->parametresUrl = $contexte->getQS();
-		$this->serviceNom = $contexte->getRessource(0); // 0 car non paginé
+		$this->serviceNom = $contexte->getRessource(0); // 0 car non versionné
+		$this->actionNom = $contexte->getRessource(1);
 
-		$this->filtresPossibles = $this->conteneur->getparametreTableau($this->serviceNom.'.masques_possibles');
+		$this->filtresPossibles = $this->conteneur->getparametreTableau($this->serviceNom . '.masques_possibles');
+		if ($this->actionNom != '') {
+			$filtresPossiblesAction = $this->conteneur->getparametreTableau($this->serviceNom . '_' . $this->actionNom . '.masques_possibles');
+			$this->filtresPossibles = array_unique(array_merge($this->filtresPossibles, $filtresPossiblesAction));
+		}
+
 		$this->chargerFiltresActifs();
 	}
 
@@ -147,15 +153,6 @@ class Navigation {
 	 * */
 	public function setSansLimite() {
 		$this->sansLimite = true;
-	}
-
-	/**
-	 * Définit le nom de l'action en cours du service en cours pour générer les
-	 * URLs précédentes et suivantes
-	 * @param string $nom
-	 */
-	public function setActionNom($nom) {
-		$this->actionNom = $nom;
 	}
 
 	/**
