@@ -32,7 +32,6 @@ class Taxons {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
 		$this->nom = 'taxons';
 		$this->navigation = $conteneur->getNavigation();
-		$this->navigation->setActionNom($this->nom);
 		$this->table = $this->conteneur->getParametre('chorologie.table');
 		$this->masque = array();
 	}

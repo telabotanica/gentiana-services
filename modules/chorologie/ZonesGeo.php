@@ -32,7 +32,6 @@ class ZonesGeo {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
 		$this->nom = 'zones-geo';
 		$this->navigation = $conteneur->getNavigation();
-		$this->navigation->setActionNom($this->nom);
 		$this->table = $this->conteneur->getParametre('chorologie.table');
 	}
 
