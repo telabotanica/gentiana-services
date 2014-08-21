@@ -26,7 +26,7 @@ class Chorologie extends RestService {
 		$this->cheminCourant = dirname(__FILE__).DS;
 		$this->conteneur = Conteneur::getInstance();
 		$this->service = 'chorologie';
-		$this->actionsPossibles = array('zones-geo', 'taxons');
+		$this->actionsPossibles = array('zones-geo', 'taxons', 'cartes');
 
 		// pourquoi ces machins ne sont-ils pas dans RestService ?
 		$chemin = Config::get('chemin_configurations') . "config_" . $this->service . ".ini";
