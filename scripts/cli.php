@@ -5,10 +5,8 @@
 * Lancer ce fichier en ligne de commande avec :
 * <code>php cli.php mon_script -a test</code>
 *
-//Auteur original :
-* @author       Jean-Pascal MILCENT <jpm@tela-botanica.org>
-* @author       Delphine CAUQUIL <delphine@tela-botanica.org>
-* @copyright    Tela-Botanica 1999-2008
+* @author       Tela Botanica <equipe-dev@tela-botanica.org>
+* @copyright    Tela-Botanica 1999-2014
 * @licence      GPL v3 & CeCILL v2
 * @version      $Id$
 */
