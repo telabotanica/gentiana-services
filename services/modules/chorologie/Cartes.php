@@ -53,7 +53,8 @@ class Cartes {
 		if(empty($ressources)) {
 			$this->getCarteTaxonsParZones();
 		} elseif($ressources[0] == "legende") {
-			$this->envoyerLegende($this->getLegendeCarteTaxonsParZones());
+			$taxonsParZones = $this->compterTaxonsParZones();
+			$this->envoyerLegende($this->getLegendeCarteTaxonsParZones($taxonsParZones[0]['nb']));
 		} elseif(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
 			if(count($ressources) > 1 && $ressources[1] == "legende") {
 				$this->envoyerLegende($this->getLegendeCarteParTaxon());
@@ -78,15 +79,20 @@ class Cartes {
 				)
 		);
 		array_shift($couleurs);
+		$borne_min = 0;
+		$borne_max = 1;
 		
 		for($i = 1; $i <= 5; $i++) {
+			$borne_max = ($i == 5) ? $nb_max : $borne_max;
 			$legende[] = array(
 					"code" => "",
 					"couleur" => $couleurs[$i-1],
 					"css" => ".seuil".$i,	
-					"nom" => "de ".(($i - 1)*150)." à ".($i * 150)." taxons",
-					"description" => "de ".(($i - 1)*150)." à ".($i * 150)." taxons."
+					"nom" => "de ".$borne_min." à ".$borne_max." taxons",
+					"description" => "de ".$borne_min." à ".$borne_max." taxons."
 				);
+			$borne_min = $borne_max + 1;
+			$borne_max = ($i == 5) ? $nb_max : ($i * 150);
 		}
 		
 		return $legende;
@@ -141,9 +147,7 @@ class Cartes {
 	}
 	
 	public function getCarteTaxonsParZones() {
-		
 		$taxonsParZones = $this->compterTaxonsParZones();
-		
 		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones($taxonsParZones[0]['nb']));
 		$this->envoyerCacheSiExiste('global');
 		
@@ -193,7 +197,7 @@ class Cartes {
 	public function compterTaxonsParZones() {
 		$req = "SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ".
 				"WHERE presence = 1 ".
-				"GROUP BY code_insee".
+				"GROUP BY code_insee ".
 				"ORDER BY nb DESC ";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
@@ -208,16 +212,17 @@ class Cartes {
 	}
 	
 	public function getSeuil($nb_taxons) {
+		// TODO: factoriser les bornes avec la fonction qui gère la légende
 		$seuil = "";
 		if($nb_taxons <= 1) {
 			$seuil = "1";
-		} elseif (2 <= $nb_taxons && $nb_taxons <= 156) {	
+		} elseif (2 <= $nb_taxons && $nb_taxons <= 150) {	
 			$seuil = "2";
-		} elseif (153 <= $nb_taxons && $nb_taxons <= 283) {
+		} elseif (151 <= $nb_taxons && $nb_taxons <= 300) {
 			$seuil = "3";
-		} elseif (284 <= $nb_taxons && $nb_taxons <= 511) {
+		} elseif (301 <= $nb_taxons && $nb_taxons <= 450) {
 			$seuil = "4";
-		} elseif (512 <= $nb_taxons) {
+		} elseif (451 <= $nb_taxons) {
 			$seuil = "5";
 		}			
 		return "seuil".$seuil;
