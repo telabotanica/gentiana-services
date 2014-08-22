@@ -53,8 +53,8 @@ class Cartes {
 		if(empty($ressources)) {
 			$this->getCarteTaxonsParZones();
 		} elseif($ressources[0] == "legende") {
-			$taxonsParZones = $this->compterTaxonsParZones();
-			$this->envoyerLegende($this->getLegendeCarteTaxonsParZones($taxonsParZones[0]['nb']));
+			$nbMaxTaxonsParZone = $this->getNbMaxTaxonsParZones();
+			$this->envoyerLegende($this->getLegendeCarteTaxonsParZones($nbMaxTaxonsParZone));
 		} elseif(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
 			if(count($ressources) > 1 && $ressources[1] == "legende") {
 				$this->envoyerLegende($this->getLegendeCarteParTaxon());
@@ -147,8 +147,9 @@ class Cartes {
 	}
 	
 	public function getCarteTaxonsParZones() {
-		$taxonsParZones = $this->compterTaxonsParZones();
-		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones($taxonsParZones[0]['nb']));
+		
+		$nbMaxTaxonsParZone = $this->getNbMaxTaxonsParZones();
+		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones($nbMaxTaxonsParZone));
 		$this->envoyerCacheSiExiste('global');
 		
 		$doc = new DOMDocument();
@@ -158,7 +159,8 @@ class Cartes {
 						$this->largeurDemandee,
 						$this->style)
 					);
-
+		
+		$taxonsParZones = $this->compterTaxonsParZones();
 		foreach($taxonsParZones as $zone) {
 			$zone_svg = $doc->getElementById($zone['code_insee']);
 			$zone_svg->setAttribute("class", $this->getSeuil($zone['nb']));
@@ -175,7 +177,6 @@ class Cartes {
 		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteParTaxon());
 		$this->envoyerCacheSiExiste($nt_ou_nn.$num_nom);
 		
-		$zonesTaxon = $this->obtenirPresenceTaxon($nt_ou_nn, $num_nom);
 		$doc = new DOMDocument();
 		$doc->validateOnParse = true;
 		$doc->loadXML($this->assemblerSvg(file_get_contents($this->cheminBaseCartes.'isere_communes.svg'), 
@@ -184,6 +185,7 @@ class Cartes {
 						$this->style)
 				);
 		
+		$zonesTaxon = $this->obtenirPresenceTaxon($nt_ou_nn, $num_nom);
 		foreach($zonesTaxon as $zone) {
 			$zone_svg = $doc->getElementById($zone['code_insee']);
 			$doc->getElementById($zone['code_insee'])->setAttribute("class", $this->getPresenceTaxon($zone['presence']));
@@ -194,7 +196,19 @@ class Cartes {
 		exit;
 	}
 	
+	public function getNbMaxTaxonsParZones() {
+		$req = "SELECT MAX(nb) as nb_max FROM (SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ch ".
+				"WHERE presence = 1 ".
+				"GROUP BY code_insee) c";
+
+		$resultat = $this->conteneur->getBdd()->recuperer($req);
+		return $resultat['nb_max'];
+	}
+	
 	public function compterTaxonsParZones() {
+		//TODO : ceci est il efficace à long terme ?
+		// Si jamais le service a besoin d'être accéléré, la dernière borne
+		// pourrait prendre la forme de "XXX taxons et plus" (où XXX est l'avant dernière borne)
 		$req = "SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ".
 				"WHERE presence = 1 ".
 				"GROUP BY code_insee ".
