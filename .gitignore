@@ -1,5 +1,5 @@
 /nbproject/private/
 /nbproject/
-framework.php
-configurations/config.ini
+services/framework.php
+services/configurations/config.ini
 .project
