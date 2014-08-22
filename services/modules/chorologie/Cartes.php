@@ -66,14 +66,14 @@ class Cartes {
 		return $resultat;
 	}
 	
-	public function getLegendeCarteTaxonsParZones($nb_taxons_max) {
+	public function getLegendeCarteTaxonsParZones($nb_max) {
 		$couleurs = $this->couleurs_legende_globale;
 		$legende = array(
 				array(
 					"code" => "",
 					"couleur" => $couleurs[0],
 					"css" => ".seuil0",	
-					"nom" => "non renseignée",
+					"nom" => "Non renseignée",
 					"description" => "Zone géographique non renseignée."
 				)
 		);
@@ -106,7 +106,7 @@ class Cartes {
 					"code" => "",
 					"couleur" => $couleurs[1],
 					"css"	=> ".presenceNonRenseignee",
-					"nom" => "non renseignée",
+					"nom" => "Non renseignée",
 					"description" => "Zone géographique non renseignée."	
 				),
 				array(
@@ -142,10 +142,11 @@ class Cartes {
 	
 	public function getCarteTaxonsParZones() {
 		
-		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones('889'));
+		$taxonsParZones = $this->compterTaxonsParZones();
+		
+		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones($taxonsParZones[0]['nb']));
 		$this->envoyerCacheSiExiste('global');
 		
-		$taxonsParZones = $this->compterTaxonsParZones();
 		$doc = new DOMDocument();
 		$doc->validateOnParse = true;
 		$doc->loadXML($this->assemblerSvg(file_get_contents($this->cheminBaseCartes.'isere_communes.svg'), 
@@ -192,7 +193,8 @@ class Cartes {
 	public function compterTaxonsParZones() {
 		$req = "SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ".
 				"WHERE presence = 1 ".
-				"GROUP BY code_insee";
+				"GROUP BY code_insee".
+				"ORDER BY nb DESC ";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		return $resultat;
