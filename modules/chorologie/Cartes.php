@@ -46,11 +46,66 @@ class Cartes {
 				
 		if(empty($ressources)) {
 			$this->getCarteTaxonsParZones();
+		} elseif($ressources[0] == "legende") {
+			$this->getLegendeCarteTaxonsParZones();
 		} elseif(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
-			$nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
-			$this->getCarteParTaxon($nt_ou_nn, $matches[2]);
+			if(count($ressources) > 1 && $ressources[1] == "legende") {
+				$this->getLegendeCarteParTaxon();
+			} else {
+				$nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
+				$this->getCarteParTaxon($nt_ou_nn, $matches[2]);
+			}
+
 		}
 		return $resultat;
+	}
+	
+	public function getLegendeCarteTaxonsParZones($nb_taxons_max) {
+		
+		$couleurs = array("#FFFFFF", "#7C88C0", "#464FA1", "#101681", "#010778");
+		
+		$legende = array(
+				"code" => "",
+				"couleur" => "#808080",
+				"nom" => "non renseignée",
+				"description" => "Zone géographique non renseignée."	
+		);
+		
+		header("Content-type: application/json");
+		echo json_encode($legende);
+		exit;
+	}
+	
+	public function getLegendeCarteParTaxon() {
+		$legende = array(
+				array(
+						"code" => "0",
+						"couleur" => "#FFFFFF",
+						"nom" => "Absent",
+						"description" => "Absent de la zone."
+				),
+				array(
+					"code" => "",
+					"couleur" => "#808080",
+					"nom" => "non renseignée",
+					"description" => "Zone géographique non renseignée."	
+				),
+				array(
+					"code" => "1",
+					"couleur" => "#808080",
+					"nom" => "Présent",
+					"description" => "Présent dans la zone."	
+				),
+				array(
+					"code" => "1?",
+					"couleur" => "#808080",
+					"nom" => "A confimer",
+					"description" => "Présence dans la zone à confirmer."
+				)
+		);
+		header("Content-type: application/json");
+		echo json_encode($legende);
+		exit;
 	}
 	
 	public function getCarteTaxonsParZones() {
