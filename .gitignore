@@ -2,4 +2,6 @@
 /nbproject/
 services/framework.php
 services/configurations/config.ini
+scripts/framework.php
+scripts/configurations/config.ini
 .project
