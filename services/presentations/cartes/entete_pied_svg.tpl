@@ -15,37 +15,7 @@
 	stroke-width   : 0.002;
 }
 
-.seuil1 {
-	fill: #FFFFFF;
-}
-
-.seuil2 {
-	fill: #7C88C0;
-}
-
-.seuil3 {
-	fill: #464FA1;
-}
-
-.seuil4 {
-	fill: #101681;
-}
-
-.seuil5 {
-	fill: #010778;
-}
-
-.presence {
-	fill: #A0FF7D;
-}
-
-.presenceDouteuse {
-	fill: #FFFF32;
-}
-
-.presenceAucune {
-	fill: #FFFFFF;
-}
+{css}
 
 ]]>
 </style>
