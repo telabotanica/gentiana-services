@@ -59,8 +59,8 @@ class Cartes {
 			if(count($ressources) > 1 && $ressources[1] == "legende") {
 				$this->envoyerLegende($this->getLegendeCarteParTaxon());
 			} else {
-				$nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
-				$this->getCarteParTaxon($nt_ou_nn, $matches[2]);
+				$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
+				$this->getCarteParTaxon($champ_nt_ou_nn, $matches[2]);
 			}
 
 		}
@@ -172,10 +172,10 @@ class Cartes {
 		$this->envoyerSvg($doc);
 	}
 	
-	public function getCarteParTaxon($nt_ou_nn, $num_nom) {
+	public function getCarteParTaxon($champ_nt_ou_nn, $nt_ou_nn) {
 		
 		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteParTaxon());
-		$this->envoyerCacheSiExiste($nt_ou_nn.$num_nom);
+		$this->envoyerCacheSiExiste($champ_nt_ou_nn.$nt_ou_nn);
 		
 		$doc = new DOMDocument();
 		$doc->validateOnParse = true;
@@ -185,13 +185,13 @@ class Cartes {
 						$this->style)
 				);
 		
-		$zonesTaxon = $this->obtenirPresenceTaxon($nt_ou_nn, $num_nom);
+		$zonesTaxon = $this->obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn);
 		foreach($zonesTaxon as $zone) {
 			$zone_svg = $doc->getElementById($zone['code_insee']);
 			$doc->getElementById($zone['code_insee'])->setAttribute("class", $this->getPresenceTaxon($zone['presence']));
 		}
 		
-		$this->sauverCache($doc, $nt_ou_nn.$num_nom);
+		$this->sauverCache($doc, $champ_nt_ou_nn.$nt_ou_nn);
 		$this->envoyerSvg($doc);
 		exit;
 	}
@@ -218,9 +218,9 @@ class Cartes {
 		return $resultat;
 	}
 	
-	public function obtenirPresenceTaxon($nt_ou_nn, $num_nom) {
+	public function obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn) {
 		$req = "SELECT code_insee, presence FROM ".$this->table." ".
-				"WHERE ".$nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($num_nom);
+				"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn);
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		return $resultat;
 	}
