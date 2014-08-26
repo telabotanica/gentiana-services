@@ -19,6 +19,7 @@ class InfosEspece {
 	protected $conteneur;
 	protected $navigation;
 	protected $table;
+	protected $tableNomsVernaculaires;
 	protected $nom;
 
 	public function __construct(Conteneur $conteneur = null) {
@@ -27,6 +28,7 @@ class InfosEspece {
 		$this->nom = 'infos-especes';
 		$this->navigation = $conteneur->getNavigation();
 		$this->table = $this->conteneur->getParametre('chorologie.table');
+		$this->tableNomsVernaculaires = $this->conteneur->getParametre('chorologie.table_nv');
 	}
 	
 	public function consulter($ressources, $parametres) {
@@ -41,7 +43,7 @@ class InfosEspece {
 				
 				$retour = array(
 					'nb_zones_totales' => 	$total_communes,
-					'noms_vernaculaires' => array(),
+					'noms_vernaculaires' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
 					'statuts_protection' => array()	
 				);
 				$retour = array_merge($retour, $infos_especes);
@@ -66,6 +68,25 @@ class InfosEspece {
 		
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 		return $resultat;
+	}
+	
+	private function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
+		$noms_vernaculaires = array();
+		$req = "SELECT nom_vernaculaire FROM ".$this->tableNomsVernaculaires." ".
+					"WHERE num_tax = ";
+		if($champ_nt_ou_nn == "num_nom") {
+			$req .= "(SELECT DISTINCT num_tax FROM ".$this->table." WHERE num_nom = ".$this->conteneur->getBdd()->proteger($nt_ou_nn).") ";
+		} else {
+			$req = $this->conteneur->getBdd()->proteger($nt_ou_nn);
+		}
+		
+		$resultat = $this->conteneur->getBdd()->recupererTous($req);
+		$resultat_fmt = array();
+		
+		foreach($resultat as $nv) {
+			$resultat_fmt[] = $nv['nom_vernaculaire'];
+		}
+		return $resultat_fmt;
 	}
 }
 ?>

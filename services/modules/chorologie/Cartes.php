@@ -220,6 +220,7 @@ class Cartes {
 	
 	public function obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn) {
 		$req = "SELECT code_insee, presence FROM ".$this->table." ".
+				"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn);
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		return $resultat;
 	}

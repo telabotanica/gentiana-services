@@ -104,7 +104,7 @@ class Infloris extends GentianaScript {
 			echo "URL: $url\n";
 			$noms = $this->chargerDonnees($url);
 			//echo "NOMS: " . print_r($noms, true) . "\n";
-			$req = "INSERT INTO " . $this->tableNomsVernaculaires . " VALUES ";
+			$req = "INSERT IGNORE INTO " . $this->tableNomsVernaculaires . " VALUES ";
 			$valeurs = array();
 			echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
 			// insertion des données
