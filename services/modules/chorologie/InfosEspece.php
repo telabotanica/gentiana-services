@@ -40,7 +40,8 @@ class InfosEspece {
 				$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
 				
 				$retour = array(
-					'nb_communes_total' => 	$total_communes
+					'nb_zones_totales' => 	$total_communes,
+					'noms_vernaculaires' => array()
 				);
 				$retour = array_merge($retour, $infos_especes);
 		} else {
@@ -58,7 +59,7 @@ class InfosEspece {
 	
 	private function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
 		
-		$req = "SELECT COUNT(presence) as presence_commune, num_nom, num_tax, nom_sci ".
+		$req = "SELECT COUNT(presence) as nb_presence_zones, num_nom, num_tax, nom_sci ".
 				"FROM chorologie ".
 				"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
 		
