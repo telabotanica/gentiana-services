@@ -41,7 +41,8 @@ class InfosEspece {
 				
 				$retour = array(
 					'nb_zones_totales' => 	$total_communes,
-					'noms_vernaculaires' => array()
+					'noms_vernaculaires' => array(),
+					'statuts_protection' => array()	
 				);
 				$retour = array_merge($retour, $infos_especes);
 		} else {
