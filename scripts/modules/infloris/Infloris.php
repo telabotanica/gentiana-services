@@ -13,14 +13,16 @@
  */
 class Infloris extends GentianaScript {
 
-	private $tableChorologie;
-	private $tableNomsVernaculaires;
+	protected $tableChorologie;
+	protected $tableNomsVernaculaires;
+	protected $tailleTranche;
 	//protected $parametres_autorises = array();
 
 	public function init() {
 		$this->projetNom = 'infloris';
 		$this->tableChorologie = $this->conteneur->getParametre('tables.chorologie');
 		$this->tableNomsVernaculaires = $this->conteneur->getParametre('tables.noms_vernaculaires');
+		$this->tailleTranche = 1000;
 	}
 
 	// ce merdier devrait être générique, nom d'un petit bonhomme !
@@ -30,7 +32,11 @@ class Infloris extends GentianaScript {
 			$cmd = $this->getParametre('a');
 			switch ($cmd) {
 				case 'tout' :
-					// 
+					$this->nettoyage();
+					$this->chargerStructure();
+					$this->importerCsv();
+					$this->rabouterNomsVernaculaires();
+					$this->rabouterStatutsProtection();
 					break;
 				case 'nettoyage' : // faire place nette
 					$this->nettoyage();
@@ -59,16 +65,17 @@ class Infloris extends GentianaScript {
 	protected function nettoyage() {
 		echo "---- suppression des tables\n";
 		$req = "DROP TABLE IF EXISTS `" . $this->tableChorologie . "`";
-		$this->getBdd()->requeter($req);
+		$this->conteneur->getBdd()->requeter($req);
 		$req = "DROP TABLE IF EXISTS `" . $this->tableNomsVernaculaires . "`;";
-		$this->getBdd()->requeter($req);
+		$this->conteneur->getBdd()->requeter($req);
 	}
 
 	/**
 	 * Crée les tables vides
 	 */
 	protected function chargerStructure() {
-		
+		echo "---- création des tables\n";
+		$this->chargerStructureSql();
 	}
 
 	/**
@@ -78,8 +85,8 @@ class Infloris extends GentianaScript {
 		$cheminCsv = $this->conteneur->getParametre('chemins.csvInfloris');
 		echo "---- chargement du fichier CSV Infloris [$cheminCsv]\n";
 		$req = "LOAD DATA INFILE '" . $cheminCsv . "' INTO TABLE " . $this->tableChorologie
-			. " FIELDS TERMINATED BY ',' ENCLOSED BY '\"' LINES TERMINATED BY '\n' IGNORE 1 LINES";
-		//$retour = $this->getBdd()->requeter($req);
+			. " IGNORE 1 LINES;";
+		$retour = $this->conteneur->getBdd()->requeter($req);
 		return $retour;
 	}
 
@@ -88,7 +95,33 @@ class Infloris extends GentianaScript {
 	 * dans la table dédiée
 	 */
 	protected function rabouterNomsVernaculaires() {
-		
+		$squeletteUrlNvjfl = $this->conteneur->getParametre("url_nvjfl");
+		echo "---- récupération des noms vernaculaires depuis eFlore\n";
+		$depart = 0;
+		$yenaencore = true;
+		while ($yenaencore) {
+			$url = sprintf($squeletteUrlNvjfl, $depart, $this->tailleTranche);
+			echo "URL: $url\n";
+			$noms = $this->chargerDonnees($url);
+			//echo "NOMS: " . print_r($noms, true) . "\n";
+			$req = "INSERT INTO " . $this->tableNomsVernaculaires . " VALUES ";
+			$valeurs = array();
+			echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
+			// insertion des données
+			foreach ($noms['resultat'] as $res) {
+				$nvP = $this->conteneur->getBdd()->proteger($res['nom']);
+				$valeurs[] = "(" . $res['num_taxon'] . ", " . $nvP  . ")";
+			}
+			$req .= implode(",", $valeurs);
+			//echo "ReQ : $req\n";
+			echo "Insertion de " . count($valeurs) . " valeurs\n";
+			$this->conteneur->getBdd()->executer($req);
+			// prochain tour
+			$depart += $this->tailleTranche;
+			$total = $noms['entete']['total'];
+			$yenaencore = $depart <= $total;
+			echo "insérés: " . min($depart, $total) . "\n";
+		}
 	}
 
 	/**

@@ -26,19 +26,12 @@ abstract class GentianaScript extends Script {
 	protected function initialiserProjet() {
 	}
 
-	protected function getBdd() {
+	/*protected function getBdd() {
 		return $this->conteneur->getBdd();
-	}
-
-	/*protected function executerScripSql($sql) {
-		$requetes = Outils::extraireRequetes($sql);
-		foreach ($requetes as $requete) {
-			$this->getBdd()->requeter($requete);
-		}
-	}
+	}*/
 
 	// wtf ?
-	protected function stopperLaBoucle($limite = false) {
+	/*protected function stopperLaBoucle($limite = false) {
 		$stop = false;
 		if ($limite) {
 			static $ligneActuelle = 1;
@@ -47,31 +40,54 @@ abstract class GentianaScript extends Script {
 			}
 		}
 		return $stop;
-	}
+	}*/
 
-	public function chargerStructureSql() {
+	protected function chargerStructureSql() {
 		$this->chargerFichierSql('chemins.structureSql');
 	}
 
-	public function chargerFichierSql($param_chemin) {
+	protected function chargerFichierSql($param_chemin) {
 		$fichierStructureSql = $this->conteneur->getParametre($param_chemin);
 		$contenuSql = $this->recupererContenu($fichierStructureSql);
 		$this->executerScriptSql($contenuSql);
 	}
 
-	public function executerScriptSql($sql) {
+	protected function executerScriptSql($sql) {
 		$requetes = Outils::extraireRequetes($sql);
 		foreach ($requetes as $requete) {
-			$this->Bdd->requeter($requete);
+			$this->conteneur->getBdd()->requeter($requete);
 		}
 	}
 
-	public function recupererContenu($chemin) {
+	protected function recupererContenu($chemin) {
 		$contenu = file_get_contents($chemin);
 		if ($contenu === false){
 			throw new Exception("Impossible d'ouvrir le fichier: $chemin");
 		}
 		return $contenu;
-	}*/
+	}
+
+	/**
+	 * Consulte une URL et retourne le résultat (ou déclenche une erreur), en
+	 * admettant qu'il soit au format JSON
+	 *
+	 * @param string $url l'URL du service
+	 */
+	protected function chargerDonnees($url, $decoderJSON = true) {
+		$resultat = $this->conteneur->getRestClient()->consulter($url);
+		$entete = $this->conteneur->getRestClient()->getReponseEntetes();
+
+		// Si le service meta-donnees fonctionne correctement, l'entete comprend la clé wrapper_data
+		if (isset($entete['wrapper_data'])) {
+			if ($decoderJSON) {
+				$resultat = json_decode($resultat, true);
+				$this->entete = (isset($resultat['entete'])) ? $resultat['entete'] : null;
+			}
+		} else {
+			$m = "L'url <a href=\"$url\">$url</a> lancée via RestClient renvoie une erreur";
+			trigger_error($m, E_USER_WARNING);
+		}
+		return $resultat;
+	}
 }
 ?>
