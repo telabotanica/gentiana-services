@@ -23,6 +23,7 @@ class Taxons {
 	protected $conteneur;
 	protected $navigation;
 	protected $table;
+	protected $tableNomsVernaculaires;
 	protected $nom;
 	protected $tri = "nom_sci";
 	protected $tris_possibles = array('code_insee', 'nom', 'nom_sci', 'num_tax', 'num_nom', 'presence');
@@ -33,6 +34,7 @@ class Taxons {
 		$this->nom = 'taxons';
 		$this->navigation = $conteneur->getNavigation();
 		$this->table = $this->conteneur->getParametre('chorologie.table');
+		$this->tableNomsVernaculaires = $this->conteneur->getParametre('chorologie.table_nv');
 		$this->masque = array();
 	}
 
@@ -65,10 +67,16 @@ class Taxons {
 	}
 
 	protected function listeTaxons() {
-		$req = "SELECT DISTINCT num_nom, nom_sci FROM " . $this->table;
+		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(nom_vernaculaire) as noms_vernaculaires";
+		$req .= " FROM " . $this->table . " c";
+		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
+		//$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.code_ciff=nv.num_tax"; // test sans num_tax
 		$req .= $this->construireWhere();
+		$req .= " GROUP BY c.num_tax"; // test sans num_tax
+		//$req .= " GROUP BY c.nom_sci";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
+		//echo "REQ: $req\n";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 
