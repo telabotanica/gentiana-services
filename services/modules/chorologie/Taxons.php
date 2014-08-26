@@ -69,11 +69,11 @@ class Taxons {
 	protected function listeTaxons() {
 		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(nom_vernaculaire) as noms_vernaculaires";
 		$req .= " FROM " . $this->table . " c";
-		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
-		//$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.code_ciff=nv.num_tax"; // test sans num_tax
+		//$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
+		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.code_ciff=nv.num_tax"; // test sans num_tax
 		$req .= $this->construireWhere();
-		$req .= " GROUP BY c.num_tax"; // test sans num_tax
-		//$req .= " GROUP BY c.nom_sci";
+		//$req .= " GROUP BY c.num_tax";
+		$req .= " GROUP BY c.nom_sci"; // test sans num_tax
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 		//echo "REQ: $req\n";
