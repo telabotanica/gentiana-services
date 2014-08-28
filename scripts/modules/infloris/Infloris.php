@@ -104,17 +104,22 @@ class Infloris extends GentianaScript {
 			echo "URL: $url\n";
 			$noms = $this->chargerDonnees($url);
 			//echo "NOMS: " . print_r($noms, true) . "\n";
-			$req = "INSERT IGNORE INTO " . $this->tableNomsVernaculaires . " VALUES ";
+			$req = "INSERT INTO " . $this->tableNomsVernaculaires . " VALUES ";
 			$valeurs = array();
 			echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
 			// insertion des données
 			foreach ($noms['resultat'] as $res) {
+				$numTaxons = explode(',', $res['num_taxon']);
 				$nvP = $this->conteneur->getBdd()->proteger($res['nom']);
-				$valeurs[] = "(" . $res['num_taxon'] . ", " . $nvP  . ")";
+				foreach ($numTaxons as $numTaxon) {
+					$valeurs[] = "(" . $numTaxon . ", " . $nvP  . ")";
+				}
 			}
+			echo "Insertion de " . count($valeurs) . " valeurs\n";
+			$valeurs = array_filter($valeurs, 'dedoublonneNV');
+			echo "Après dédoublonnage " . count($valeurs) . " valeurs\n";
 			$req .= implode(",", $valeurs);
 			//echo "ReQ : $req\n";
-			echo "Insertion de " . count($valeurs) . " valeurs\n";
 			$this->conteneur->getBdd()->executer($req);
 			// prochain tour
 			$depart += $this->tailleTranche;
@@ -122,6 +127,28 @@ class Infloris extends GentianaScript {
 			$yenaencore = $depart <= $total;
 			echo "insérés: " . min($depart, $total) . "\n";
 		}
+	}
+
+	public function dedoublonneNV(array $a, array $b, $strict=true) {
+		$la = coutn($a);
+		$lb = count($lb);
+		if ($la != $lb) {
+			return false;
+		}
+		if ($strict === true) {
+			for ($i=0; $i < $la; $i++) {
+				if ($a[$i] !== $b[$i]) {
+					return false;
+				}
+			}
+		} else {
+			for ($i=0; $i < $la; $i++) {
+				if ($a[$i] != $b[$i]) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/**

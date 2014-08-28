@@ -36,31 +36,31 @@ class InfosEspece {
 		$retour = null;
 		
 		if(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
-				$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
-							
-				$total_communes = $this->getTotalCommunes();
-				$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
-				
-				$retour = array(
-					'nb_zones_totales' => 	$total_communes,
-					'noms_vernaculaires' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
-					'statuts_protection' => array()	
-				);
-				$retour = array_merge($retour, $infos_especes);
+			$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
+
+			$total_communes = $this->getTotalCommunes();
+			$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
+
+			$retour = array(
+				'nb_zones_totales' => 	$total_communes,
+				'noms_vernaculaires' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
+				'statuts_protection' => array()	
+			);
+			$retour = array_merge($retour, $infos_especes);
 		} else {
 			// TODO : envoyer message erreur;
 		}
 		return $retour;
 	}
 		
-	private function getTotalCommunes() {
+	protected function getTotalCommunes() {
 		$req = "SELECT COUNT(DISTINCT code_insee) as nb_communes_total FROM chorologie";
 		
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 		return $resultat['nb_communes_total'];
 	}
 	
-	private function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
+	protected function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
 		
 		$req = "SELECT COUNT(presence) as nb_presence_zones, num_nom, num_tax, nom_sci ".
 				"FROM chorologie ".
@@ -70,7 +70,7 @@ class InfosEspece {
 		return $resultat;
 	}
 	
-	private function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
+	protected function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
 		$noms_vernaculaires = array();
 		$req = "SELECT nom_vernaculaire FROM ".$this->tableNomsVernaculaires." ".
 					"WHERE num_tax = ";
