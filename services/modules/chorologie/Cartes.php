@@ -32,16 +32,26 @@ class Cartes {
 	protected $style = null;
 	protected $couleurs_legende_taxons = null;
 	protected $couleurs_legende_globale = null;
+	
+	protected $prefixe_id_zone = 'INSEE-C-';
+	
+	protected $options_cache = 	array();
 
 	public function __construct(Conteneur $conteneur = null) {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
 		$this->nom = 'cartes';
 		$this->navigation = $conteneur->getNavigation();
 		$this->table = $this->conteneur->getParametre('chorologie.table');
+		
 		$this->cheminBaseCartes = $this->conteneur->getParametre('cartes.chemin');
 		$this->cheminBaseCache = $this->conteneur->getParametre('cartes.chemin_cache');
+		
 		$this->couleurs_legende_taxons = explode(',', $this->conteneur->getParametre('cartes.couleurs_legende_taxons'));
 		$this->couleurs_legende_globale = explode(',', $this->conteneur->getParametre('cartes.couleurs_legende_globale'));
+		
+		$this->options_cache = array('mise_en_cache' => $this->conteneur->getParametre('cartes.cache_miseEnCache'),
+									'stockage_chemin' => $this->conteneur->getParametre('cartes.cache_stockageChemin'),
+									'duree_de_vie' => $this->conteneur->getParametre('cartes.cache_dureeDeVie'));
 	}
 
 	public function consulter($ressources, $parametres) {
@@ -70,10 +80,10 @@ class Cartes {
 	public function getLegendeCarteTaxonsParZones($nb_max) {
 		$couleurs = $this->couleurs_legende_globale;
 		$legende = array(
-				array(
+				"seuil0" => array(
 					"code" => "",
 					"couleur" => $couleurs[0],
-					"css" => ".seuil0",	
+					"css" => "",	
 					"nom" => "Non renseignée",
 					"description" => "Zone géographique non renseignée."
 				)
@@ -84,10 +94,10 @@ class Cartes {
 		
 		for($i = 1; $i <= 5; $i++) {
 			$borne_max = ($i == 5) ? $nb_max : $borne_max;
-			$legende[] = array(
+			$legende["seuil".$i] = array(
 					"code" => "",
 					"couleur" => $couleurs[$i-1],
-					"css" => ".seuil".$i,	
+					"css" => "",	
 					"nom" => "de ".$borne_min." à ".$borne_max." taxons",
 					"description" => "de ".$borne_min." à ".$borne_max." taxons."
 				);
@@ -101,31 +111,31 @@ class Cartes {
 	public function getLegendeCarteParTaxon() {
 		$couleurs = $this->couleurs_legende_taxons;
 		$legende = array(
-				array(
+				"0" => array(
 					"code" => "0",
 					"couleur" => $couleurs[0],
-					"css" => ".presenceAucune",
+					"css" => "",
 					"nom" => "Absent",
 					"description" => "Absent de la zone."
 				),
-				array(
+				"n/a" => array(
 					"code" => "",
 					"couleur" => $couleurs[1],
-					"css"	=> ".presenceNonRenseignee",
+					"css"	=> "",
 					"nom" => "Non renseignée",
 					"description" => "Zone géographique non renseignée."	
 				),
-				array(
+				"1" => array(
 					"code" => "1",
 					"couleur" => $couleurs[2],
-					"css"	=> ".presence",	
+					"css"	=> "",	
 					"nom" => "Présent",
 					"description" => "Présent dans la zone."	
 				),
-				array(
+				"1?" => array(
 					"code" => "1?",
 					"couleur" => $couleurs[3],
-					"css"	=> 	".presenceDouteuse",
+					"css"	=> 	"",
 					"nom" => "A confimer",
 					"description" => "Présence dans la zone à confirmer."
 				)
@@ -136,63 +146,68 @@ class Cartes {
 	
 	private function convertirLegendeVersCss($legende) {
 		$css = "";
-		foreach($legende as $item) {
-			$css .= 
-				$item['css']." {"."\n".
-				"	fill:".$item['couleur'].";"."\n".		
-				"}"."\n\n";
+		foreach($legende as $cle => $item) {
+			if($item['css'] != '') {
+				$css .= 
+					$item['css']." {"."\n".
+					"	fill:".$item['couleur'].";"."\n".		
+					"}"."\n\n";
+			}
 		}
 		
 		return $css;
 	}
 	
 	public function getCarteTaxonsParZones() {
-		
-		$nbMaxTaxonsParZone = $this->getNbMaxTaxonsParZones();
-		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteTaxonsParZones($nbMaxTaxonsParZone));
 		$this->envoyerCacheSiExiste('global');
 		
-		$doc = new DOMDocument();
-		$doc->validateOnParse = true;
-		$doc->loadXML($this->assemblerSvg(file_get_contents($this->cheminBaseCartes.'isere_communes.svg'), 
-						$this->calculerHauteur($this->largeurDemandee), 
-						$this->largeurDemandee,
-						$this->style)
-					);
-		
+		$nbMaxTaxonsParZone = $this->getNbMaxTaxonsParZones();
+		$legende = $this->getLegendeCarteTaxonsParZones($nbMaxTaxonsParZone);
+				
 		$taxonsParZones = $this->compterTaxonsParZones();
+		$infos_zones = array();
+		
 		foreach($taxonsParZones as $zone) {
-			$zone_svg = $doc->getElementById($zone['code_insee']);
-			$zone_svg->setAttribute("class", $this->getSeuil($zone['nb']));
-			$titre = $zone_svg->getAttribute("title")." (".$zone['code_insee'].") - ".$zone['nb']." taxons présents";
-			$zone_svg->setAttribute("title", $titre);
+			$infos_zones[$zone['code_insee']] = "- ".$zone['nb']." taxons présents";
+			$legende[$this->getSeuil($zone['nb'])]['css'] .= $legende[$this->getSeuil($zone['nb'])]['css'] != "" ? ', ' : '' ;
+			$legende[$this->getSeuil($zone['nb'])]['css'] .= "#".$this->prefixe_id_zone.$zone['code_insee'];
 		}
 		
-		$this->sauverCache($doc, 'global');
-		$this->envoyerSvg($doc);
+		$this->style = $this->convertirLegendeVersCss($legende);
+		$svg = $this->assemblerSvg(
+				$this->calculerHauteur($this->largeurDemandee),
+				$this->largeurDemandee,
+				$this->style,
+				$infos_zones);
+		
+		$this->sauverCache(array('style' => $this->style, 'infos_zones' => $infos_zones), 'global');
+		$this->envoyerSvg($svg);
 	}
 	
-	public function getCarteParTaxon($champ_nt_ou_nn, $nt_ou_nn) {
-		
-		$this->style = $this->convertirLegendeVersCss($this->getLegendeCarteParTaxon());
+	public function getCarteParTaxon($champ_nt_ou_nn, $nt_ou_nn) {	
 		$this->envoyerCacheSiExiste($champ_nt_ou_nn.$nt_ou_nn);
-		
-		$doc = new DOMDocument();
-		$doc->validateOnParse = true;
-		$doc->loadXML($this->assemblerSvg(file_get_contents($this->cheminBaseCartes.'isere_communes.svg'), 
-						$this->calculerHauteur($this->largeurDemandee), 
-						$this->largeurDemandee,
-						$this->style)
-				);
-		
+
+		$legende = $this->getLegendeCarteParTaxon();
 		$zonesTaxon = $this->obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn);
+		$cssCodesInsee = "";
+		
+		$infos_zones = array();		
 		foreach($zonesTaxon as $zone) {
-			$zone_svg = $doc->getElementById($zone['code_insee']);
-			$doc->getElementById($zone['code_insee'])->setAttribute("class", $this->getPresenceTaxon($zone['presence']));
+			$infos_zones[$zone['code_insee']] = "- ".$legende[$zone['presence']]['nom'];
+			$legende[$zone['presence']]['css'] .= $legende[$zone['presence']]['css'] != "" ? ', ' : '' ;
+			$legende[$zone['presence']]['css'] .= "#".$this->prefixe_id_zone.$zone['code_insee'];
 		}
 		
-		$this->sauverCache($doc, $champ_nt_ou_nn.$nt_ou_nn);
-		$this->envoyerSvg($doc);
+		$this->style = $this->convertirLegendeVersCss($legende);
+		
+		$svg = $this->assemblerSvg(
+				$this->calculerHauteur($this->largeurDemandee),
+				$this->largeurDemandee,
+				$this->style,
+				$infos_zones);
+				
+		$this->sauverCache(array('style' => $this->style, 'infos_zones' => $infos_zones), $champ_nt_ou_nn.$nt_ou_nn);
+		$this->envoyerSvg($svg);
 		exit;
 	}
 	
@@ -254,20 +269,17 @@ class Cartes {
 		return presence;
 	}
 	
-	public function sauverCache($doc, $cache_id) {
-		$xpath = new DomXPath($doc);
-		$nodes = $xpath->query("//*[contains(@class, 'communes')]");
-		$cache = $doc->saveXML($nodes->item(0));
-		return file_put_contents($this->cheminBaseCache.$cache_id.'.svg', $cache);
+	public function sauverCache($a_cacher, $cache_id) {
+		$cache = new CacheSimple($this->options_cache);
+		return $cache->sauver(serialize($a_cacher), $cache_id);
 	}
 	
 	public function getCache($id) {
-		$chemin = $this->cheminBaseCache.$id.'.svg';
-		if(file_exists($chemin)) {
-			return file_get_contents($chemin);
-		} else {
-			return null;
+		$cache = new CacheSimple($this->options_cache);
+		if(($contenu_cache = $cache->charger($id)) !== false) {
+			$contenu_cache = unserialize($contenu_cache);
 		}
+		return $contenu_cache;
 	}
 	
 	private function calculerHauteur($largeur) {
@@ -276,20 +288,25 @@ class Cartes {
 		return intval($hauteur);
 	}
 	
-	private function assemblerSvg($contenu_svg_string, $hauteur, $largeur, $style) {	
-		$tpl_svg = file_get_contents($this->cheminBaseCartes.'/entete_pied_svg.tpl');
-		$svg = str_replace(array('{hauteur}','{largeur}','{contenu_svg}', '{css}'), array($hauteur, $largeur, $contenu_svg_string, $style), $tpl_svg);
-		
-		return $svg;
+	private function envoyerCacheSiExiste($id) {
+		if(($cache = $this->getCache($id))) {
+			$style = $cache['style'];
+			$infos_zones = $cache['infos_zones'];
+			$cache = $this->assemblerSvg($this->calculerHauteur($this->largeurDemandee), $this->largeurDemandee, $style, $infos_zones);
+			$this->envoyerSvg($cache);
+		}
 	}
 	
-	private function envoyerCacheSiExiste($id) {
-		if(($cache = $this->getCache($id)) != null) {
-			$cache = $this->assemblerSvg($cache, $this->calculerHauteur($this->largeurDemandee), $this->largeurDemandee, $this->style);
-			header("Content-type: image/svg+xml");
-			echo $cache;
-			exit;
-		}
+	private function assemblerSvg($hauteur, $largeur, $style, $infos_zones) {	
+		$tpl_svg = $this->cheminBaseCartes.'/communes_isere.tpl.svg';
+		$donnees = array(
+						'hauteur'	=> $hauteur,
+						'largeur'	=> $largeur,
+						'css'		=> $style,
+						'infos_zones'	=> $infos_zones
+					);
+		$svg = SquelettePhp::analyser($tpl_svg, $donnees);
+		return $svg;
 	}
 	
 	private function envoyerLegende($legende) {
@@ -298,9 +315,9 @@ class Cartes {
 		exit;
 	}
 	
-	private function envoyerSvg($doc) {
+	private function envoyerSvg($svg) {
 		header("Content-type: image/svg+xml");
-		$doc->save('php://output');
+		echo $svg;
 		exit;
 	}
 }
