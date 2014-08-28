@@ -98,15 +98,14 @@ class Infloris extends GentianaScript {
 		$squeletteUrlNvjfl = $this->conteneur->getParametre("url_nvjfl");
 		echo "---- récupération des noms vernaculaires depuis eFlore\n";
 		$depart = 0;
+		$nbInsertions = 0;
 		$yenaencore = true;
 		while ($yenaencore) {
 			$url = sprintf($squeletteUrlNvjfl, $depart, $this->tailleTranche);
-			echo "URL: $url\n";
 			$noms = $this->chargerDonnees($url);
-			//echo "NOMS: " . print_r($noms, true) . "\n";
-			$req = "INSERT INTO " . $this->tableNomsVernaculaires . " VALUES ";
+			// Si quelqu'un parvient à dédoublonner les $valeurs, on enlève le IGNORE
+			$req = "INSERT IGNORE INTO " . $this->tableNomsVernaculaires . " VALUES ";
 			$valeurs = array();
-			echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
 			// insertion des données
 			foreach ($noms['resultat'] as $res) {
 				$numTaxons = explode(',', $res['num_taxon']);
@@ -115,40 +114,15 @@ class Infloris extends GentianaScript {
 					$valeurs[] = "(" . $numTaxon . ", " . $nvP  . ")";
 				}
 			}
-			echo "Insertion de " . count($valeurs) . " valeurs\n";
-			$valeurs = array_filter($valeurs, 'dedoublonneNV');
-			echo "Après dédoublonnage " . count($valeurs) . " valeurs\n";
 			$req .= implode(",", $valeurs);
-			//echo "ReQ : $req\n";
 			$this->conteneur->getBdd()->executer($req);
 			// prochain tour
+			$nbInsertions += count($valeurs); // Faux car INSERT IGNORE - dédoublonner ou compter les insertions réelles
 			$depart += $this->tailleTranche;
 			$total = $noms['entete']['total'];
 			$yenaencore = $depart <= $total;
-			echo "insérés: " . min($depart, $total) . "\n";
+			echo "insérés: " . min($depart, $total) . " noms, " . $nbInsertions . " attributions\n";
 		}
-	}
-
-	public function dedoublonneNV(array $a, array $b, $strict=true) {
-		$la = coutn($a);
-		$lb = count($lb);
-		if ($la != $lb) {
-			return false;
-		}
-		if ($strict === true) {
-			for ($i=0; $i < $la; $i++) {
-				if ($a[$i] !== $b[$i]) {
-					return false;
-				}
-			}
-		} else {
-			for ($i=0; $i < $la; $i++) {
-				if ($a[$i] != $b[$i]) {
-					return false;
-				}
-			}
-		}
-		return true;
 	}
 
 	/**
@@ -156,7 +130,40 @@ class Infloris extends GentianaScript {
 	 * à la table
 	 */
 	protected function rabouterStatutsProtection() {
-		
+		return false;
+		$squeletteUrlNvjfl = $this->conteneur->getParametre("url_nvjfl");
+		echo "---- récupération des noms vernaculaires depuis eFlore\n";
+		$depart = 0;
+		$nbInsertions = 0;
+		$yenaencore = true;
+		while ($yenaencore) {
+			$url = sprintf($squeletteUrlNvjfl, $depart, $this->tailleTranche);
+			//echo "URL: $url\n";
+			$noms = $this->chargerDonnees($url);
+			//echo "NOMS: " . print_r($noms, true) . "\n";
+			// Si quelqu'un parvient à dédoublonner les $valeurs, on enlève le IGNORE
+			$req = "INSERT IGNORE INTO " . $this->tableNomsVernaculaires . " VALUES ";
+			$valeurs = array();
+			//echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
+			// insertion des données
+			foreach ($noms['resultat'] as $res) {
+				$numTaxons = explode(',', $res['num_taxon']);
+				$nvP = $this->conteneur->getBdd()->proteger($res['nom']);
+				foreach ($numTaxons as $numTaxon) {
+					$valeurs[] = "(" . $numTaxon . ", " . $nvP  . ")";
+				}
+			}
+			//echo "Insertion de " . count($valeurs) . " valeurs\n";
+			$req .= implode(",", $valeurs);
+			//echo "ReQ : $req\n";
+			$this->conteneur->getBdd()->executer($req);
+			// prochain tour
+			$nbInsertions += count($valeurs); // Faux car INSERT IGNORE - dédoublonner ou compter les insertions réelles
+			$depart += $this->tailleTranche;
+			$total = $noms['entete']['total'];
+			$yenaencore = $depart <= $total;
+			echo "insérés: " . min($depart, $total) . " noms, " . $nbInsertions . " attributions\n";
+		}
 	}
 
 	// Copie num_nom dans num_nom_retenu lorsque ce dernier est vide
