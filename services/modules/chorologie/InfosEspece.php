@@ -37,27 +37,38 @@ class InfosEspece {
 		
 		if(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
 				$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
-							
-				$total_communes = $this->getTotalCommunes();
-				$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
 				
+			if(count($ressources) == 1) {
+				$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
 				$retour = array(
-					'nb_zones_totales' => 	$total_communes,
-					'noms_vernaculaires' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
+					'noms_vernaculaires_fr' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
 					'statuts_protection' => array()	
 				);
 				$retour = array_merge($retour, $infos_especes);
+			} else {
+				$retour = array();
+				// sous action du service
+				switch($ressources[1]) {
+					case "noms-vernaculaires":
+						$retour = array('noms_vernaculaires_fr' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]));
+					break;
+					
+					case "statuts-protection":
+						$retour = array('statuts_protection' => array());
+					break;
+					
+					case "presence":
+						$retour = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
+					break;
+					
+					default:
+					//TODO quoi faire dans le cas par défaut ?
+				} 	
+			}
 		} else {
 			// TODO : envoyer message erreur;
 		}
 		return $retour;
-	}
-		
-	private function getTotalCommunes() {
-		$req = "SELECT COUNT(DISTINCT code_insee) as nb_communes_total FROM chorologie";
-		
-		$resultat = $this->conteneur->getBdd()->recuperer($req);
-		return $resultat['nb_communes_total'];
 	}
 	
 	private function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
