@@ -24,7 +24,6 @@ class InfosEspece {
 
 	public function __construct(Conteneur $conteneur = null) {
 		$this->conteneur = $conteneur == null ? new Conteneur() : $conteneur;
-		//echo '<pre>'.print_r($this->conteneur, true).'</pre>';exit;
 		$this->nom = 'infos-especes';
 		$this->navigation = $conteneur->getNavigation();
 		$this->table = $this->conteneur->getParametre('chorologie.table');
@@ -32,9 +31,8 @@ class InfosEspece {
 	}
 	
 	public function consulter($ressources, $parametres) {
-		
+
 		$retour = null;
-		
 		if(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
 				$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
 				
@@ -70,18 +68,17 @@ class InfosEspece {
 		}
 		return $retour;
 	}
-	
-	private function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
-		
-		$req = "SELECT COUNT(presence) as nb_presence_zones, num_nom, num_tax, nom_sci ".
-				"FROM chorologie ".
-				"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
+
+	protected function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
+		$req = "SELECT COUNT(presence) as nb_presence_zones, num_nom, num_tax, nom_sci".
+				" FROM ".$this->table.
+				" WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
 		
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 		return $resultat;
 	}
-	
-	private function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
+
+	protected function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
 		$noms_vernaculaires = array();
 		$req = "SELECT nom_vernaculaire FROM ".$this->tableNomsVernaculaires." ".
 					"WHERE num_tax = ";
