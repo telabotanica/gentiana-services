@@ -17,6 +17,7 @@ class Infloris extends GentianaScript {
 	protected $tableNomsVernaculaires;
 	protected $tailleTranche;
 	//protected $parametres_autorises = array();
+	protected static $zonesIsere = array('EU', 'FX', 'Reg-82', 'Dep-38');
 
 	public function init() {
 		$this->projetNom = 'infloris';
@@ -61,7 +62,11 @@ class Infloris extends GentianaScript {
 		}
 	}
 
-	// Dézingue tout le bousin
+	/**
+	 * Dézingue tout le bousin
+	 * @TODO chaque méthode devrait s'autonettoyer au début afin d'être répétable
+	 * sans avoir à tout reprendre depuis le début (principe du dump)
+	 */
 	protected function nettoyage() {
 		echo "---- suppression des tables\n";
 		$req = "DROP TABLE IF EXISTS `" . $this->tableChorologie . "`";
@@ -127,61 +132,54 @@ class Infloris extends GentianaScript {
 
 	/**
 	 * Va chercher les statuts de protection pour chaque espèce et les rajoute
-	 * à la table
+	 * à la table; importe un fichier dump SQL des lois
 	 */
 	protected function rabouterStatutsProtection() {
-		return false;
-		$squeletteUrlNvjfl = $this->conteneur->getParametre("url_nvjfl");
-		echo "---- récupération des noms vernaculaires depuis eFlore\n";
-		$depart = 0;
-		$nbInsertions = 0;
-		$yenaencore = true;
-		while ($yenaencore) {
-			$url = sprintf($squeletteUrlNvjfl, $depart, $this->tailleTranche);
-			//echo "URL: $url\n";
-			$noms = $this->chargerDonnees($url);
-			//echo "NOMS: " . print_r($noms, true) . "\n";
-			// Si quelqu'un parvient à dédoublonner les $valeurs, on enlève le IGNORE
-			$req = "INSERT IGNORE INTO " . $this->tableNomsVernaculaires . " VALUES ";
-			$valeurs = array();
-			//echo "Préparation de " . count($noms['resultat']) . " valeurs\n";
-			// insertion des données
-			foreach ($noms['resultat'] as $res) {
-				$numTaxons = explode(',', $res['num_taxon']);
-				$nvP = $this->conteneur->getBdd()->proteger($res['nom']);
-				foreach ($numTaxons as $numTaxon) {
-					$valeurs[] = "(" . $numTaxon . ", " . $nvP  . ")";
+		echo "---- récupération des statuts de protection depuis eFlore\n";
+		// ajout d'une colonne pour la protection
+		$req = "ALTER TABLE `" . $this->tableChorologie . "`"
+			. " ADD COLUMN protection text DEFAULT NULL";
+		$this->conteneur->getBdd()->requeter($req);
+
+		$req = "SELECT distinct num_nom FROM " . $this->tableChorologie;
+		$resultat = $this->conteneur->getBdd()->requeter($req);
+		// pour chaque taxon mentionné (inefficace mais évite d'implémenter un
+		// mode liste sur le service eflore/sptb
+		$squeletteUrlSptb = $this->conteneur->getParametre("url_sptb");
+		foreach ($resultat as $res) {
+			$nn = $res['num_nom'];
+			//echo "NN: $nn\n";
+			if ($nn != 0) {
+				$url = sprintf($squeletteUrlSptb, $nn);
+				//echo "URL: $url\n";
+				$statuts = $this->chargerDonnees($url);
+				//echo "STATUTS: " . print_r($statuts, true) . "\n";
+				if (count($statuts) > 0) {
+					$json = array();
+					foreach ($statuts as $statut) {
+						// @TODO tester si ça concerne l'Isère !
+						if (in_array($statut['code_zone_application'], self::$zonesIsere)) {
+							$nouveauStatut = array();
+							$nouveauStatut['zone'] = $statut['code_zone_application'];
+							$nouveauStatut['lien'] = $statut['hyperlien_legifrance'];
+							$json[] =  $nouveauStatut;
+						}
+					}
+					// Si au moins un des statuts concerne l'Isère
+					if (count($json) > 0) {
+						$json = json_encode($json);
+						//echo "JSON: " . print_r($json, true) . "\n";
+						// Insertion d'un bout de JSON
+						$jsonP = $this->conteneur->getBdd()->proteger($json);
+						$nnP = $this->conteneur->getBdd()->proteger($nn);
+						$reqIns = "UPDATE " . $this->tableChorologie
+							. " SET protection=$jsonP WHERE num_nom=$nnP";
+						//echo "ReqIns: $reqIns\n";
+						$this->conteneur->getBdd()->executer($reqIns);
+					}
 				}
 			}
-			//echo "Insertion de " . count($valeurs) . " valeurs\n";
-			$req .= implode(",", $valeurs);
-			//echo "ReQ : $req\n";
-			$this->conteneur->getBdd()->executer($req);
-			// prochain tour
-			$nbInsertions += count($valeurs); // Faux car INSERT IGNORE - dédoublonner ou compter les insertions réelles
-			$depart += $this->tailleTranche;
-			$total = $noms['entete']['total'];
-			$yenaencore = $depart <= $total;
-			echo "insérés: " . min($depart, $total) . " noms, " . $nbInsertions . " attributions\n";
 		}
 	}
-
-	// Copie num_nom dans num_nom_retenu lorsque ce dernier est vide
-	/*protected function completerNumNomRetenu() {
-		echo "---- complétion des num_nom_retenu\n";
-		$req = "UPDATE " . $this->table . " SET num_nom_retenu = num_nom WHERE num_nom_retenu='';";
-		$this->getBdd()->requeter($req);
-	}*/
-
-	/*private function preparerTablePrChpHierarchie() {
-		$requete = "SHOW COLUMNS FROM {$this->table} LIKE 'hierarchie' ";
-		$resultat = $this->getBdd()->recuperer($requete);
-		if ($resultat === false) {
-			$requete = 	"ALTER TABLE {$this->table} ".
-						'ADD hierarchie VARCHAR(1000) '.
-						'CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL ';
-			$this->getBdd()->requeter($requete);
-		}
-	}*/
 }
 ?>
