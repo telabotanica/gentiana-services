@@ -4,7 +4,10 @@
  * Paramètres :
  * - navigation.depart : élément auquel commencer la page (liste) servie
  * - navigation.limite : taille de page
- * - masque : un LIKE sera effectué entre le nom scientifique et ce masque
+ * - masque.(nom|zone-geo) : un LIKE sera effectué entre le champ et le masque
+ * - masque.protection : si '0' retourne les protections NULL, si '1' les NOT NULL
+ * 
+ * @TODO ça devrait s'appeler "noms" et pas "taxons"
  *
  * @category   Gentiana
  * @package    Services
@@ -39,11 +42,16 @@ class Taxons {
 	}
 
 	public function consulter($ressources, $parametres) {
-		if($this->navigation->getFiltre('masque.nom') != null) {
+		if ($this->navigation->getFiltre('masque.nom') != null) {
 			$this->masque['nom'] = $this->navigation->getFiltre('masque.nom');
 		}
-		if($this->navigation->getFiltre('masque.zone-geo') != null) {
+		if ($this->navigation->getFiltre('masque.zone-geo') != null) {
 			$this->masque['zone-geo'] = $this->navigation->getFiltre('masque.zone-geo');
+		}
+		if ($this->navigation->getFiltre('masque.protection') === '0') {
+			$this->masque['protection'] = false;
+		} elseif($this->navigation->getFiltre('masque.protection') === '1') {
+			$this->masque['protection'] = true;
 		}
 
 		// TODO: renvoyer une erreur si le tri ou la direction n'existent pas ?
@@ -99,7 +107,9 @@ class Taxons {
 				$masqueNom = $this->conteneur->getBdd()->proteger($this->masque['nom']);
 				$conditions[] = "nom_sci LIKE $masqueNom";
 			}
-			
+			if(isset($this->masque['protection'])) {
+				$conditions[] = "protection IS " . ($this->masque['protection'] === true ? "NOT " : "") . "NULL";
+			}
 			if(isset($this->masque['zone-geo'])) {
 				$masqueZg = $this->conteneur->getBdd()->proteger($this->masque['zone-geo']);
 				$conditions[] = "code_insee = $masqueZg";
