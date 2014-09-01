@@ -29,7 +29,7 @@ class Taxons {
 	protected $tableNomsVernaculaires;
 	protected $nom;
 	protected $tri = "nom_sci";
-	protected $tris_possibles = array('code_insee', 'nom', 'nom_sci', 'num_tax', 'num_nom', 'presence');
+	protected $tris_possibles = array('code_insee', 'nom', 'nom_sci', 'num_tax', 'num_nom', 'presence', 'noms_vernaculaires', 'protection');
 	protected $tri_dir = "ASC";
 
 	public function __construct(Conteneur $conteneur = null) {
@@ -75,7 +75,7 @@ class Taxons {
 	}
 
 	protected function listeTaxons() {
-		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(nom_vernaculaire) as noms_vernaculaires";
+		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(DISTINCT nom_vernaculaire) as noms_vernaculaires, presence, protection";
 		$req .= " FROM " . $this->table . " c";
 		//$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
 		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.code_ciff=nv.num_tax"; // test sans num_tax
@@ -87,6 +87,11 @@ class Taxons {
 		//echo "REQ: $req\n";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
+		// décodage des statuts de protection
+		foreach ($resultat as $k => $r) {
+			$resultat[$k]['statuts_protection'] = json_decode($r['protection']);
+			unset($resultat[$k]['protection']);
+		}
 
 		return $resultat;
 	}
