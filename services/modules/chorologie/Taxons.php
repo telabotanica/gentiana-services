@@ -5,7 +5,7 @@
  * - navigation.depart : élément auquel commencer la page (liste) servie
  * - navigation.limite : taille de page
  * - masque.(nom|zone-geo) : un LIKE sera effectué entre le champ et le masque
- * - masque.protection : si '0' retourne les protections NULL, si '1' les NOT NULL
+ * - masque.proteges : si '0' retourne les protections NULL, si '1' les NOT NULL
  * 
  * @TODO ça devrait s'appeler "noms" et pas "taxons"
  *
@@ -48,10 +48,10 @@ class Taxons {
 		if ($this->navigation->getFiltre('masque.zone-geo') != null) {
 			$this->masque['zone-geo'] = $this->navigation->getFiltre('masque.zone-geo');
 		}
-		if ($this->navigation->getFiltre('masque.protection') === '0') {
-			$this->masque['protection'] = false;
-		} elseif($this->navigation->getFiltre('masque.protection') === '1') {
-			$this->masque['protection'] = true;
+		if ($this->navigation->getFiltre('masque.proteges') === '0') {
+			$this->masque['proteges'] = false;
+		} elseif($this->navigation->getFiltre('masque.proteges') === '1') {
+			$this->masque['proteges'] = true;
 		}
 
 		// TODO: renvoyer une erreur si le tri ou la direction n'existent pas ?
@@ -77,14 +77,11 @@ class Taxons {
 	protected function listeTaxons() {
 		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(DISTINCT nom_vernaculaire) as noms_vernaculaires, presence, protection";
 		$req .= " FROM " . $this->table . " c";
-		//$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
-		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.code_ciff=nv.num_tax"; // test sans num_tax
+		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
 		$req .= $this->construireWhere();
-		//$req .= " GROUP BY c.num_tax";
-		$req .= " GROUP BY c.nom_sci"; // test sans num_tax
+		$req .= " GROUP BY c.num_tax";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
-		//echo "REQ: $req\n";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		// décodage des statuts de protection
@@ -112,8 +109,8 @@ class Taxons {
 				$masqueNom = $this->conteneur->getBdd()->proteger($this->masque['nom']);
 				$conditions[] = "nom_sci LIKE $masqueNom";
 			}
-			if(isset($this->masque['protection'])) {
-				$conditions[] = "protection IS " . ($this->masque['protection'] === true ? "NOT " : "") . "NULL";
+			if(isset($this->masque['proteges'])) {
+				$conditions[] = "protection IS " . ($this->masque['proteges'] === true ? "NOT " : "") . "NULL";
 			}
 			if(isset($this->masque['zone-geo'])) {
 				$masqueZg = $this->conteneur->getBdd()->proteger($this->masque['zone-geo']);
