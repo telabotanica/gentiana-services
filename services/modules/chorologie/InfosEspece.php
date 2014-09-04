@@ -107,7 +107,7 @@ class InfosEspece {
 		if($champ_nt_ou_nn == "num_nom") {
 			$req .= "(SELECT DISTINCT num_tax FROM ".$this->table." WHERE num_nom = ".$this->conteneur->getBdd()->proteger($nt_ou_nn).") ";
 		} else {
-			$req = $this->conteneur->getBdd()->proteger($nt_ou_nn);
+			$req .= $this->conteneur->getBdd()->proteger($nt_ou_nn);
 		}
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
