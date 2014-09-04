@@ -28,6 +28,9 @@ class Cartes {
 	
 	protected $largeurDefaut = 720;
 	protected $largeurDemandee = 1024;
+
+	/** Nombre de taxons pour changer de tranche */
+	protected $pasParDefaut = 150;
 	
 	protected $style = null;
 	protected $couleurs_legende_taxons = null;
@@ -43,23 +46,28 @@ class Cartes {
 		$this->navigation = $conteneur->getNavigation();
 		$this->table = $this->conteneur->getParametre('chorologie.table');
 		
-		$this->cheminBaseCartes = $this->conteneur->getParametre('cartes.chemin');
-		$this->cheminBaseCache = $this->conteneur->getParametre('cartes.chemin_cache');
+		$this->cheminBaseCartes = $this->conteneur->getParametre('chorologie_cartes.chemin');
+		$this->cheminBaseCache = $this->conteneur->getParametre('chorologie_cartes.chemin_cache');
 		
-		$this->couleurs_legende_taxons = explode(',', $this->conteneur->getParametre('cartes.couleurs_legende_taxons'));
-		$this->couleurs_legende_globale = explode(',', $this->conteneur->getParametre('cartes.couleurs_legende_globale'));
+		$this->couleurs_legende_taxons = explode(',', $this->conteneur->getParametre('chorologie_cartes.couleurs_legende_taxons'));
+		$this->couleurs_legende_globale = explode(',', $this->conteneur->getParametre('chorologie_cartes.couleurs_legende_globale'));
 		
-		$this->options_cache = array('mise_en_cache' => $this->conteneur->getParametre('cartes.cache_miseEnCache'),
-									'stockage_chemin' => $this->conteneur->getParametre('cartes.cache_stockageChemin'),
-									'duree_de_vie' => $this->conteneur->getParametre('cartes.cache_dureeDeVie'));
+		$this->options_cache = array(
+			'mise_en_cache' => $this->conteneur->getParametre('chorologie_cartes.cache_miseEnCache'),
+			'stockage_chemin' => $this->conteneur->getParametre('chorologie_cartes.cache_stockageChemin'),
+			'duree_de_vie' => $this->conteneur->getParametre('chorologie_cartes.cache_dureeDeVie')
+		);
 	}
 
 	public function consulter($ressources, $parametres) {
-		
+
+		if($this->navigation->getFiltre('masque.proteges') != null && is_numeric($this->navigation->getFiltre('masque.proteges'))) {
+			$this->masque['proteges'] = ($this->navigation->getFiltre('masque.proteges') === '1');
+		}
 		if($this->navigation->getFiltre('retour.format') != null && is_numeric($this->navigation->getFiltre('retour.format'))) {
 			$this->largeurDemandee = intval($this->navigation->getFiltre('retour.format'));
 		}
-				
+		
 		if(empty($ressources)) {
 			$this->getCarteTaxonsParZones();
 		} elseif($ressources[0] == "legende") {
@@ -76,74 +84,93 @@ class Cartes {
 		}
 		return $resultat;
 	}
-	
+
+	/**
+	 * Retourne une légende à niveaux (maximum 6) pour tous les taxons sur toute
+	 * la dition, en fonction du nombre max de taxons par zone (adaptative)
+	 */
 	public function getLegendeCarteTaxonsParZones($nb_max) {
 		$couleurs = $this->couleurs_legende_globale;
 		$legende = array(
-				"seuil0" => array(
-					"code" => "",
-					"couleur" => $couleurs[0],
-					"css" => "",	
-					"nom" => "Non renseignée",
-					"description" => "Zone géographique non renseignée."
-				)
+			"seuil0" => array(
+				"code" => "",
+				"couleur" => $couleurs[0],
+				"css" => "",	
+				"nom" => "Aucun taxon signalé",
+				"description" => "Aucun taxon signalé sur cette zone"
+			)
 		);
-		array_shift($couleurs);
-		$borne_min = 0;
-		$borne_max = 1;
+
+		// réglage de l'échelle
+		$pas = min($this->pasParDefaut, max(1, intval($nb_max / 5)));
+		$borne_min = 1;
+		$borne_max = $pas;
+		$tranches = min($nb_max, 5);
 		
-		for($i = 1; $i <= 5; $i++) {
-			$borne_max = ($i == 5) ? $nb_max : $borne_max;
+		for($i = 1; $i <= $tranches; $i++) {
+			$borne_max = ($i == $tranches) ? $nb_max : $borne_max;
+			if ($borne_min == $borne_max) {
+				$desc = "$borne_min taxon" . ($borne_min == 1 ? '' : 's');
+			} else {
+				$desc = "de $borne_min à $borne_max taxons";
+			}
 			$legende["seuil".$i] = array(
-					"code" => "",
-					"couleur" => $couleurs[$i-1],
-					"css" => "",	
-					"nom" => "de ".$borne_min." à ".$borne_max." taxons",
-					"description" => "de ".$borne_min." à ".$borne_max." taxons."
-				);
+				"code" => "",
+				"couleur" => $couleurs[$i],
+				"css" => "",	
+				"nom" => $desc,
+				"description" => $desc
+			);
+			// tour suivant
 			$borne_min = $borne_max + 1;
-			$borne_max = ($i == 5) ? $nb_max : ($i * 150);
+			$borne_max = ($i == 5) ? $nb_max : ($borne_max + $pas);
 		}
 		
 		return $legende;
 	}
-	
+
+	/**
+	 * Retourne une légende pour un taxon donné, sur toute la dition
+	 */
 	public function getLegendeCarteParTaxon() {
 		$couleurs = $this->couleurs_legende_taxons;
 		$legende = array(
-				"0" => array(
-					"code" => "0",
-					"couleur" => $couleurs[0],
-					"css" => "",
-					"nom" => "Absent",
-					"description" => "Absent de la zone."
-				),
-				"n/a" => array(
-					"code" => "",
-					"couleur" => $couleurs[1],
-					"css"	=> "",
-					"nom" => "Non renseignée",
-					"description" => "Zone géographique non renseignée."	
-				),
-				"1" => array(
-					"code" => "1",
-					"couleur" => $couleurs[2],
-					"css"	=> "",	
-					"nom" => "Présent",
-					"description" => "Présent dans la zone."	
-				),
-				"1?" => array(
-					"code" => "1?",
-					"couleur" => $couleurs[3],
-					"css"	=> 	"",
-					"nom" => "A confimer",
-					"description" => "Présence dans la zone à confirmer."
-				)
+			"n/a" => array(
+				"code" => "n/a",
+				"couleur" => $couleurs[0],
+				"css"	=> "",
+				"nom" => "Non renseignée",
+				"description" => "Zone géographique non renseignée."	
+			),
+			"0" => array(
+				"code" => "0",
+				"couleur" => $couleurs[1],
+				"css" => "",
+				"nom" => "Absent",
+				"description" => "Absent de la zone."
+			),
+			"1?" => array(
+				"code" => "1?",
+				"couleur" => $couleurs[2],
+				"css"	=> 	"",
+				"nom" => "A confimer",
+				"description" => "Présence dans la zone à confirmer."
+			),
+			"1" => array(
+				"code" => "1",
+				"couleur" => $couleurs[3],
+				"css"	=> "",	
+				"nom" => "Présent",
+				"description" => "Présent dans la zone."	
+			)
 		);
 		
 		return $legende;
 	}
-	
+
+	/**
+	 * Crée un morceau de CSS pour colorer la carte en fonction de la légende
+	 */
 	private function convertirLegendeVersCss($legende) {
 		$css = "";
 		foreach($legende as $cle => $item) {
@@ -154,12 +181,32 @@ class Cartes {
 					"}"."\n\n";
 			}
 		}
-		
+
+		$premiereTranche = reset($legende);
+		$premiereCouleur = $premiereTranche['couleur'];
+		$css .= "
+			.communes { 
+				fill           : " . $premiereCouleur . ";
+				fill-opacity   : 1;
+				stroke         : #f0f0f0;
+				stroke-opacity : 1;
+				stroke-width   : 0.002;
+			}\n\n
+		";
+
 		return $css;
 	}
-	
+
+	/**
+	 * Retourne une carte globale de la dition, colorée en fonction du nombre de
+	 * taxons dans chaque zone
+	 */
 	public function getCarteTaxonsParZones() {
-		$this->envoyerCacheSiExiste('global');
+		$nomCache = 'global';
+		if ($this->masque['proteges']) {
+			$nomCache .= '_proteges';
+		}
+		$this->envoyerCacheSiExiste($nomCache);
 		
 		$nbMaxTaxonsParZone = $this->getNbMaxTaxonsParZones();
 		$legende = $this->getLegendeCarteTaxonsParZones($nbMaxTaxonsParZone);
@@ -168,7 +215,8 @@ class Cartes {
 		$infos_zones = array();
 		
 		foreach($taxonsParZones as $zone) {
-			$infos_zones[$zone['code_insee']] = "- ".$zone['nb']." taxons présents";
+			$s = ($zone['nb'] > 1) ? 's' : '';
+			$infos_zones[$zone['code_insee']] = sprintf("- ".$zone['nb']." taxon%s présent%s", $s, $s);
 			$legende[$this->getSeuil($zone['nb'])]['css'] .= $legende[$this->getSeuil($zone['nb'])]['css'] != "" ? ', ' : '' ;
 			$legende[$this->getSeuil($zone['nb'])]['css'] .= "#".$this->prefixe_id_zone.$zone['code_insee'];
 		}
@@ -180,41 +228,55 @@ class Cartes {
 				$this->style,
 				$infos_zones);
 		
-		$this->sauverCache(array('style' => $this->style, 'infos_zones' => $infos_zones), 'global');
+		$this->sauverCache(array('style' => $this->style, 'infos_zones' => $infos_zones), $nomCache);
 		$this->envoyerSvg($svg);
 	}
-	
+
+	/**
+	 * Retourne une carte de présence pour un taxon donné, sur la dition
+	 */
 	public function getCarteParTaxon($champ_nt_ou_nn, $nt_ou_nn) {	
 		$this->envoyerCacheSiExiste($champ_nt_ou_nn.$nt_ou_nn);
 
 		$legende = $this->getLegendeCarteParTaxon();
 		$zonesTaxon = $this->obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn);
+		//echo "<pre>" . print_r($zonesTaxon, true) . "</pre>";
+		//exit;
 		$cssCodesInsee = "";
-		
+
 		$infos_zones = array();		
 		foreach($zonesTaxon as $zone) {
 			$infos_zones[$zone['code_insee']] = "- ".$legende[$zone['presence']]['nom'];
 			$legende[$zone['presence']]['css'] .= $legende[$zone['presence']]['css'] != "" ? ', ' : '' ;
 			$legende[$zone['presence']]['css'] .= "#".$this->prefixe_id_zone.$zone['code_insee'];
 		}
-		
+
 		$this->style = $this->convertirLegendeVersCss($legende);
 		
 		$svg = $this->assemblerSvg(
-				$this->calculerHauteur($this->largeurDemandee),
-				$this->largeurDemandee,
-				$this->style,
-				$infos_zones);
-				
+			$this->calculerHauteur($this->largeurDemandee),
+			$this->largeurDemandee,
+			$this->style,
+			$infos_zones
+		);
+
 		$this->sauverCache(array('style' => $this->style, 'infos_zones' => $infos_zones), $champ_nt_ou_nn.$nt_ou_nn);
 		$this->envoyerSvg($svg);
 		exit;
 	}
+
+	protected function construireWhere() {
+		$where = 'WHERE presence = 1';
+		if ($this->masque['proteges']) {
+			$where .= ' AND protection IS NOT NULL';
+		}
+		return $where;
+	}
 	
 	public function getNbMaxTaxonsParZones() {
-		$req = "SELECT MAX(nb) as nb_max FROM (SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ch ".
-				"WHERE presence = 1 ".
-				"GROUP BY code_insee) c";
+		$req = "SELECT MAX(nb) as nb_max FROM (SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ch"
+			. " " . $this->construireWhere()
+			. " GROUP BY code_insee) c";
 
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 		return $resultat['nb_max'];
@@ -224,10 +286,10 @@ class Cartes {
 		//TODO : ceci est il efficace à long terme ?
 		// Si jamais le service a besoin d'être accéléré, la dernière borne
 		// pourrait prendre la forme de "XXX taxons et plus" (où XXX est l'avant dernière borne)
-		$req = "SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table." ".
-				"WHERE presence = 1 ".
-				"GROUP BY code_insee ".
-				"ORDER BY nb DESC ";
+		$req = "SELECT COUNT(num_nom) as nb, code_insee FROM ".$this->table
+			. " " . $this->construireWhere()
+			. " GROUP BY code_insee"
+			. " ORDER BY nb DESC";
 
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		return $resultat;
@@ -235,7 +297,10 @@ class Cartes {
 	
 	public function obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn) {
 		$req = "SELECT code_insee, presence FROM ".$this->table." ".
-				"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn);
+			"WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn);
+		if ($this->masque['proteges']) {
+			$req .= ' AND protection IS NOT NULL';
+		}
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		return $resultat;
 	}
@@ -311,7 +376,7 @@ class Cartes {
 	
 	private function envoyerLegende($legende) {
 		header("Content-type: application/json");
-		echo json_encode($legende);
+		echo json_encode(array_values($legende));
 		exit;
 	}
 	

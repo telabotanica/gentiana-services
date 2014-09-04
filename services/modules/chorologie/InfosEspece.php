@@ -34,33 +34,30 @@ class InfosEspece {
 
 		$retour = null;
 		if(preg_match("/^(nt|nn):([0-9]+)$/", $ressources[0], $matches)) {
-				$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
-				
+			$champ_nt_ou_nn = ($matches[1] == "nn") ? "num_nom" : "num_tax";
+
 			if(count($ressources) == 1) {
-				$infos_especes = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
-				$retour = array(
-					'noms_vernaculaires_fr' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]),
-					'statuts_protection' => array()	
+				// toutes les infos
+				$infos_espece = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
+				$noms_vernaculaires = array(
+					'noms_vernaculaires_fr' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2])
 				);
-				$retour = array_merge($retour, $infos_especes);
+				$retour = array_merge($infos_espece, $noms_vernaculaires);
 			} else {
-				$retour = array();
 				// sous action du service
+				$retour = array();
 				switch($ressources[1]) {
 					case "noms-vernaculaires":
 						$retour = array('noms_vernaculaires_fr' => $this->getNomsVernaculaires($champ_nt_ou_nn, $matches[2]));
 					break;
-					
 					case "statuts-protection":
-						$retour = array('statuts_protection' => array());
+						$retour = array('statuts_protection' => $this->getStatutsProtection($champ_nt_ou_nn, $matches[2]));
 					break;
-					
 					case "presence":
-						$retour = $this->getInfosEspece($champ_nt_ou_nn, $matches[2]);
+						$retour = $this->getInfosPresence($champ_nt_ou_nn, $matches[2]);
 					break;
-					
 					default:
-					//TODO quoi faire dans le cas par défaut ?
+						$retour = "Actions possibles: noms-vernaculaires, statuts-protection, presence";
 				} 	
 			}
 		} else {
@@ -69,31 +66,57 @@ class InfosEspece {
 		return $retour;
 	}
 
+	/**
+	 * Toutes les infos sauf noms vernaculaires (requête plus efficace)
+	 */
 	protected function getInfosEspece($champ_nt_ou_nn, $nt_ou_nn) {
-		$req = "SELECT COUNT(presence) as nb_presence_zones, num_nom, num_tax, nom_sci".
+		$req = "SELECT num_nom, num_tax, nom_sci, COUNT(presence) as nb_presence_zones, protection".
 				" FROM ".$this->table.
 				" WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
 		
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
+		$resultat['statuts_protection'] = json_decode($resultat['protection']);
+		unset($resultat['protection']);
+
+		return $resultat;
+	}
+
+	protected function getInfosPresence($champ_nt_ou_nn, $nt_ou_nn) {
+		$req = "SELECT COUNT(presence) as nb_presence_zones".
+				" FROM ".$this->table.
+				" WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
+
+		$resultat = $this->conteneur->getBdd()->recuperer($req);
+		return $resultat;
+	}
+
+	protected function getStatutsProtection($champ_nt_ou_nn, $nt_ou_nn) {
+		$req = "SELECT protection".
+				" FROM ".$this->table.
+				" WHERE ".$champ_nt_ou_nn." = ".$this->conteneur->getBdd()->proteger($nt_ou_nn)." AND presence = 1";
+
+		$resultat = $this->conteneur->getBdd()->recuperer($req);
+		$resultat = json_decode($resultat['protection']);
 		return $resultat;
 	}
 
 	protected function getNomsVernaculaires($champ_nt_ou_nn, $nt_ou_nn) {
 		$noms_vernaculaires = array();
-		$req = "SELECT nom_vernaculaire FROM ".$this->tableNomsVernaculaires." ".
-					"WHERE num_tax = ";
+		$req = "SELECT nom_vernaculaire FROM ".$this->tableNomsVernaculaires
+			. " WHERE num_tax = ";
 		if($champ_nt_ou_nn == "num_nom") {
 			$req .= "(SELECT DISTINCT num_tax FROM ".$this->table." WHERE num_nom = ".$this->conteneur->getBdd()->proteger($nt_ou_nn).") ";
 		} else {
 			$req = $this->conteneur->getBdd()->proteger($nt_ou_nn);
 		}
-		
+
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
+
 		$resultat_fmt = array();
-		
 		foreach($resultat as $nv) {
 			$resultat_fmt[] = $nv['nom_vernaculaire'];
 		}
+
 		return $resultat_fmt;
 	}
 }
