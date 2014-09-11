@@ -48,13 +48,29 @@ class ZonesGeo {
 			$this->tri_dir = ($dir == "ASC" || $dir == "DESC") ? $dir : $this->tri_dir;
 		}
 		
-		$zones = $this->listeZonesGeo();
-		$total = count($zones);
-
+		if($this->navigation->getFiltre('masque.zone-geo') != null) {
+			$zones = $this->infosZoneGeo($this->navigation->getFiltre('masque.zone-geo'));
+			// encore du tabarouette de code générique qu'a rien à foutre là
+			$total = 1;
+		} else {
+			$zones = $this->listeZonesGeo();
+			$total = $this->compterZonesGeo();
+		}
+		
 		// encore du tabarouette de code générique qu'a rien à foutre là
 		$resultat = new ResultatService();
-		$this->navigation->setTotal($this->compterZonesGeo());
+		$this->navigation->setTotal($total);
 		$resultat->corps = array('entete' => $this->navigation->getEntete(), 'resultat' => $zones);
+
+		return $resultat;
+	}
+	
+	protected function infosZoneGeo($code) {
+		$req = "SELECT DISTINCT (code_insee) AS code, nom FROM ".$this->table." ";
+		$req .= "WHERE code_insee = ".$this->conteneur->getBdd()->proteger($code)." ";
+		
+		$resultat = $this->conteneur->getBdd()->recupererTous($req);
+		
 		return $resultat;
 	}
 
