@@ -75,10 +75,12 @@ class Taxons {
 	}
 
 	protected function listeTaxons() {
-		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(DISTINCT nom_vernaculaire) as noms_vernaculaires, presence, protection";
+		$req = "SELECT DISTINCT num_nom, nom_sci, group_concat(DISTINCT nom_vernaculaire) as noms_vernaculaires, max(presence) as presence, protection";
 		$req .= " FROM " . $this->table . " c";
 		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
 		$req .= $this->construireWhere();
+		// en groupant par num_tax, un num_nom sera choisi - lequel ? :-/
+		// protection est la même pour toutes les lignes du même num_tax
 		$req .= " GROUP BY c.num_tax";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
