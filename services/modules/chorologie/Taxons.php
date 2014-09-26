@@ -79,8 +79,10 @@ class Taxons {
 		$req .= " FROM " . $this->table . " c";
 		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
 		$req .= $this->construireWhere();
-		// en groupant par num_tax, un num_nom sera choisi - lequel ? :-/
-		// protection est la même pour toutes les lignes du même num_tax
+		// en groupant par num_tax, une paire num_nom/nom_sci sera choisie - laquelle ? :-/
+		// la protection est la même pour toutes les lignes du même num_tax
+		// @TODO devrait-on grouper par num_nom de façon a avoir plus d'entrées et
+		// plus de noms scientifiques différents ?
 		$req .= " GROUP BY c.num_tax";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
