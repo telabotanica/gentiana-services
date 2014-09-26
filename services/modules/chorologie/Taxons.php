@@ -82,7 +82,7 @@ class Taxons {
 		// en groupant par num_tax, une paire num_nom/nom_sci sera choisie - laquelle ? :-/
 		// la protection est la même pour toutes les lignes du même num_tax
 		// @TODO devrait-on grouper par num_nom de façon a avoir plus d'entrées et
-		// plus de noms scientifiques différents ?
+		// plus de noms scientifiques différents ? - le service s'appellerait alors "Noms"
 		$req .= " GROUP BY c.num_tax";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
