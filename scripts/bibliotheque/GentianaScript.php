@@ -26,22 +26,6 @@ abstract class GentianaScript extends Script {
 	protected function initialiserProjet() {
 	}
 
-	/*protected function getBdd() {
-		return $this->conteneur->getBdd();
-	}*/
-
-	// wtf ?
-	/*protected function stopperLaBoucle($limite = false) {
-		$stop = false;
-		if ($limite) {
-			static $ligneActuelle = 1;
-			if ($limite == $ligneActuelle++) {
-				$stop = true;
-			}
-		}
-		return $stop;
-	}*/
-
 	protected function chargerStructureSql() {
 		$this->chargerFichierSql('chemins.structureSql');
 	}
