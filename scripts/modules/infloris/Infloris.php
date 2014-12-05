@@ -140,7 +140,7 @@ class Infloris extends GentianaScript {
 	 * de Jean-François Léger (le frère de Claude) sont basés dessus...
 	 */
 	protected function rabouterNumTax() {
-		echo "---- récupération des statuts de protection depuis eFlore\n";
+		echo "---- récupération des numéros taxonomiques depuis eFlore\n";
 		$req = "SELECT distinct num_nom FROM " . $this->tableChorologie;
 		$resultat = $this->conteneur->getBdd()->requeter($req);
 		// pour chaque taxon mentionné (inefficace)
