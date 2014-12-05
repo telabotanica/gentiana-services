@@ -36,6 +36,7 @@ class Infloris extends GentianaScript {
 					$this->nettoyage();
 					$this->chargerStructure();
 					$this->importerCsv();
+					$this->rabouterNumTax();
 					$this->rabouterNomsVernaculaires();
 					$this->rabouterStatutsProtection();
 					break;
@@ -47,6 +48,9 @@ class Infloris extends GentianaScript {
 					break;
 				case 'importerCsv' : // intégrer le fichier CSV
 					$this->importerCsv();
+					break;
+				case 'numTax' : // rabouter les numéros taxonomiques
+					$this->rabouterNumTax();
 					break;
 				case 'nomsVernaculaires' : // rabouter les noms vernaculaires
 					$this->rabouterNomsVernaculaires();
@@ -127,6 +131,39 @@ class Infloris extends GentianaScript {
 			$total = $noms['entete']['total'];
 			$yenaencore = $depart <= $total;
 			echo "insérés: " . min($depart, $total) . " noms, " . $nbInsertions . " attributions\n";
+		}
+	}
+
+	/**
+	 * Va chercher les numéros taxonomiques pour chaque numéro nomenclatural et
+	 * les rajoute à la table; on s'en passerait bien mais les noms vernaculaires
+	 * de Jean-François Léger (le frère de Claude) sont basés dessus...
+	 */
+	protected function rabouterNumTax() {
+		echo "---- récupération des statuts de protection depuis eFlore\n";
+		$req = "SELECT distinct num_nom FROM " . $this->tableChorologie;
+		$resultat = $this->conteneur->getBdd()->requeter($req);
+		// pour chaque taxon mentionné (inefficace)
+		$squeletteUrlNumTax = $this->conteneur->getParametre("url_num_tax");
+		foreach ($resultat as $res) {
+			$nn = $res['num_nom'];
+			//echo "NN: $nn\n";
+			if ($nn != 0) {
+				$url = sprintf($squeletteUrlNumTax, $nn);
+				//echo "URL: $url\n";
+				$infosNom = $this->chargerDonnees($url);
+				//echo "INFOS: " . print_r($infosNom, true) . "\n";
+				if (! empty($infosNom['num_taxonomique'])) {
+					$numTax = $infosNom['num_taxonomique'];
+					// mise à jour
+					$numTaxP = $this->conteneur->getBdd()->proteger($numTax);
+					$nnP = $this->conteneur->getBdd()->proteger($nn);
+					$reqIns = "UPDATE " . $this->tableChorologie
+						. " SET num_tax=$numTaxP WHERE num_nom=$nnP";
+					//echo "ReqIns: $reqIns\n";
+					$this->conteneur->getBdd()->executer($reqIns);
+				}
+			}
 		}
 	}
 
