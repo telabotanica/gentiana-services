@@ -79,11 +79,9 @@ class Taxons {
 		$req .= " FROM " . $this->table . " c";
 		$req .= " LEFT JOIN " . $this->tableNomsVernaculaires . " nv ON c.num_tax=nv.num_tax";
 		$req .= $this->construireWhere();
-		// en groupant par num_tax, une paire num_nom/nom_sci sera choisie - laquelle ? :-/
-		// la protection est la même pour toutes les lignes du même num_tax
-		// @TODO devrait-on grouper par num_nom de façon a avoir plus d'entrées et
-		// plus de noms scientifiques différents ? - le service s'appellerait alors "Noms"
-		$req .= " GROUP BY c.num_tax";
+		// on groupe par num_nom, charge au responsable de la BD de ne mettre au
+		// possible que des noms retenus afin de n'avoir qu'une entrée par espèce
+		$req .= " GROUP BY c.num_nom";
 		$req .= " ORDER BY ".$this->tri." ".$this->tri_dir." ";
 		$req .= " LIMIT " . $this->navigation->getDepart() . ", " . $this->navigation->getLimite();
 
