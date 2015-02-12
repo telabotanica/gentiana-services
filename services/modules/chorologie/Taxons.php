@@ -88,7 +88,16 @@ class Taxons {
 		$resultat = $this->conteneur->getBdd()->recupererTous($req);
 		// décodage des statuts de protection
 		foreach ($resultat as $k => $r) {
-			$resultat[$k]['statuts_protection'] = json_decode($r['protection']);
+			$sp = null;
+			if ($r['protection'] != '') {
+				// Décodage statuts avec texte venant d'eFlore
+				$sp = json_decode($r['protection']);
+			}
+			if ($sp == '') {
+				// Statut brut d'Infloris
+				$sp = $r['protection'];
+			}
+			$resultat[$k]['statuts_protection'] = $sp;
 			unset($resultat[$k]['protection']);
 		}
 
@@ -112,7 +121,9 @@ class Taxons {
 				$conditions[] = "nom_sci LIKE $masqueNom";
 			}
 			if(isset($this->masque['proteges'])) {
-				$conditions[] = "protection IS " . ($this->masque['proteges'] === true ? "NOT " : "") . "NULL";
+				// teste '' plutôt que NULL car le fichier infloris contenant la
+				// colonne "protection", l'import conduit à des '' partout et aucun NULL
+				$conditions[] = "protection " . ($this->masque['proteges'] === true ? " != " : " = ") . "''";
 			}
 			if(isset($this->masque['zone-geo'])) {
 				$masqueZg = $this->conteneur->getBdd()->proteger($this->masque['zone-geo']);

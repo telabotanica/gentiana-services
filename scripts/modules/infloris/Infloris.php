@@ -36,7 +36,7 @@ class Infloris extends GentianaScript {
 					$this->nettoyage();
 					$this->chargerStructure();
 					$this->importerCsv();
-					$this->rabouterNumTax();
+					$this->rabouterNumTaxEtNomSci();
 					$this->rabouterNomsVernaculaires();
 					$this->rabouterStatutsProtection();
 					break;
@@ -49,8 +49,11 @@ class Infloris extends GentianaScript {
 				case 'importerCsv' : // intégrer le fichier CSV
 					$this->importerCsv();
 					break;
-				case 'numTax' : // rabouter les numéros taxonomiques
-					$this->rabouterNumTax();
+				case 'numTax' : // rabouter les numéros taxonomiques seulement (utile ?)
+					$this->rabouterNumTaxEtNomSci(true);
+					break;
+				case 'numTaxEtNomSci' : // rabouter les numéros taxonomiques et les noms scientifiques
+					$this->rabouterNumTaxEtNomSci();
 					break;
 				case 'nomsVernaculaires' : // rabouter les noms vernaculaires
 					$this->rabouterNomsVernaculaires();
@@ -59,7 +62,7 @@ class Infloris extends GentianaScript {
 					$this->rabouterStatutsProtection();
 					break;
 				default :
-					throw new Exception("Actions disponibles : tout, nettoyage, chargerStructure, importerCsv, nomsVernaculaires, statutsProtection");
+					throw new Exception("Actions disponibles : tout, nettoyage, chargerStructure, importerCsv, numTax, numTaxEtNomSci nomsVernaculaires, statutsProtection");
 			}
 		} catch (Exception $e) {
 			$this->traiterErreur($e->getMessage());
@@ -137,10 +140,16 @@ class Infloris extends GentianaScript {
 	/**
 	 * Va chercher les numéros taxonomiques pour chaque numéro nomenclatural et
 	 * les rajoute à la table; on s'en passerait bien mais les noms vernaculaires
-	 * de Jean-François Léger (le frère de Claude) sont basés dessus...
+	 * de Jean-François Léger (le frère de Claude et Fernand) sont basés dessus...
+	 * Au passage on prend les noms scientifiques, à la demande de Gentiana qui
+	 * a l'air de préférer ceux de la BDTFX à ceux du CIFF.
+	 * On fait les deux ensemble pour n'appeler le service qu'une fois par nn.
+	 * @param $exclureNomsSci si on ne veut vraiment que les num tax, mettre à true
 	 */
-	protected function rabouterNumTax() {
-		echo "---- récupération des numéros taxonomiques depuis eFlore\n";
+	protected function rabouterNumTaxEtNomSci($exclureNomsSci = false) {
+		echo "---- récupération des numéros taxonomiques "
+			. ($exclureNomsSci == false ? "et des noms scientifiques " : "")
+			. "depuis eFlore\n";
 		$req = "SELECT distinct num_nom FROM " . $this->tableChorologie;
 		$resultat = $this->conteneur->getBdd()->requeter($req);
 		// pour chaque taxon mentionné (inefficace)
@@ -159,7 +168,12 @@ class Infloris extends GentianaScript {
 					$numTaxP = $this->conteneur->getBdd()->proteger($numTax);
 					$nnP = $this->conteneur->getBdd()->proteger($nn);
 					$reqIns = "UPDATE " . $this->tableChorologie
-						. " SET num_tax=$numTaxP WHERE num_nom=$nnP";
+						. " SET num_tax=$numTaxP";
+					if (! $exclureNomsSci && isset($infosNom['nom_complet'])) {
+						$nomSciP = $this->conteneur->getBdd()->proteger($infosNom['nom_complet']);
+						$reqIns .= ", nom_sci=$nomSciP";
+					}
+					$reqIns .= " WHERE num_nom=$nnP";
 					//echo "ReqIns: $reqIns\n";
 					$this->conteneur->getBdd()->executer($reqIns);
 				}
@@ -168,15 +182,20 @@ class Infloris extends GentianaScript {
 	}
 
 	/**
-	 * Va chercher les statuts de protection pour chaque espèce et les rajoute
-	 * à la table; importe un fichier dump SQL des lois
+	 * Va chercher les statuts de protection pour chaque espèce dans la table
+	 * "sptb" de Tela Botanica, à travers le service d'eFlore et les rajoute
+	 * à la table de chorologie
+	 * Le fichier Infloris importé contient déjà certains statuts, on considère
+	 * que ceux-ci sont PLUS À JOUR que ceux provenant d'eFlore (vrai en 02/2015)
+	 * Les données de protection existantes ne sont donc pas écrasées.
 	 */
 	protected function rabouterStatutsProtection() {
 		echo "---- récupération des statuts de protection depuis eFlore\n";
 		// ajout d'une colonne pour la protection
-		$req = "ALTER TABLE `" . $this->tableChorologie . "`"
+		// n'est plus nécessaire depuis que le fichier Infloris contient une colonne "protection"
+		/*$req = "ALTER TABLE `" . $this->tableChorologie . "`"
 			. " ADD COLUMN protection text DEFAULT NULL";
-		$this->conteneur->getBdd()->requeter($req);
+		$this->conteneur->getBdd()->requeter($req);*/
 
 		$req = "SELECT distinct num_nom FROM " . $this->tableChorologie;
 		$resultat = $this->conteneur->getBdd()->requeter($req);
@@ -194,7 +213,7 @@ class Infloris extends GentianaScript {
 				if (count($statuts) > 0) {
 					$json = array();
 					foreach ($statuts as $statut) {
-						// @TODO tester si ça concerne l'Isère !
+						// Test si ça concerne l'Isère
 						if (in_array($statut['code_zone_application'], self::$zonesIsere)) {
 							$nouveauStatut = array();
 							$nouveauStatut['zone'] = $statut['code_zone_application'];
@@ -210,13 +229,17 @@ class Infloris extends GentianaScript {
 						$jsonP = $this->conteneur->getBdd()->proteger($json);
 						$nnP = $this->conteneur->getBdd()->proteger($nn);
 						$reqIns = "UPDATE " . $this->tableChorologie
-							. " SET protection=$jsonP WHERE num_nom=$nnP";
+							. " SET protection=$jsonP WHERE num_nom=$nnP"
+							// supprimer la condition ci-dessous pour donner la
+							// priorité aux status de protection issus d'eFlore
+							. " AND protection = ''";
 						//echo "ReqIns: $reqIns\n";
 						$this->conteneur->getBdd()->executer($reqIns);
 					}
 				}
 			}
 		}
+
 	}
 }
 ?>
