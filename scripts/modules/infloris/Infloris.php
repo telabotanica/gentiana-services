@@ -38,7 +38,7 @@ class Infloris extends GentianaScript {
 					$this->importerCsv();
 					$this->rabouterNumTaxEtNomSci();
 					$this->rabouterNomsVernaculaires();
-					$this->rabouterStatutsProtection();
+					//$this->rabouterStatutsProtection(); // désactivé sur demande en 04/15
 					break;
 				case 'nettoyage' : // faire place nette
 					$this->nettoyage();
