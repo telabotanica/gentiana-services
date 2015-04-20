@@ -60,6 +60,12 @@ class Statuts {
 
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 
-		return $resultat;
+		$infos = array(
+			'abreviation' => $this->abreviation,
+			'intitule' => $resultat['epts_intitule'],
+			'description' => $resultat['epts_description']
+		);
+
+		return $infos;
 	}
 }

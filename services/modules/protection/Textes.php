@@ -57,6 +57,13 @@ class Textes {
 
 		$resultat = $this->conteneur->getBdd()->recuperer($req);
 
-		return $resultat;
+		$infos = array(
+			'abreviation' => $this->abreviation,
+			'intitule' => $resultat['eptt_intitule'],
+			'description' => $resultat['eptt_description'],
+			'url' => $resultat['eptt_url_texte_loi']
+		);
+
+		return $infos;
 	}
 }
