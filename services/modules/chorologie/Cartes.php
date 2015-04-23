@@ -60,8 +60,7 @@ class Cartes {
 	}
 
 	public function consulter($ressources, $parametres) {
-
-		if($this->navigation->getFiltre('masque.proteges') != null && is_numeric($this->navigation->getFiltre('masque.proteges'))) {
+		if($this->navigation->getFiltre('masque.proteges') != null) {
 			$this->masque['proteges'] = ($this->navigation->getFiltre('masque.proteges') === '1');
 		}
 		if($this->navigation->getFiltre('retour.format') != null && is_numeric($this->navigation->getFiltre('retour.format'))) {
@@ -240,8 +239,6 @@ class Cartes {
 
 		$legende = $this->getLegendeCarteParTaxon();
 		$zonesTaxon = $this->obtenirPresenceTaxon($champ_nt_ou_nn, $nt_ou_nn);
-		//echo "<pre>" . print_r($zonesTaxon, true) . "</pre>";
-		//exit;
 		$cssCodesInsee = "";
 
 		$infos_zones = array();		
@@ -268,7 +265,7 @@ class Cartes {
 	protected function construireWhere() {
 		$where = 'WHERE presence = 1';
 		if ($this->masque['proteges']) {
-			$where .= ' AND protection IS NOT NULL';
+			$where .= " AND protection IS NOT NULL AND protection != ''";
 		}
 		return $where;
 	}
